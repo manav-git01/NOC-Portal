@@ -1,22 +1,22 @@
-# 🎓 Internship NOC Portal
+# ≡ƒÄô Internship NOC Portal
 
-A full-featured web application for managing student internship **No Objection Certificate (NOC)** requests — built with **Laravel 12**. It streamlines the multi-level approval workflow between students, faculty in-charge, and higher-level faculty, with automated email notifications and PDF NOC generation.
-
----
-
-## ✨ Features
-
-- **Role-Based Access Control** — Three roles: Student, Faculty In-Charge, Higher-Level Faculty
-- **Internship Application Submission** — Students submit applications with company details and offer letters
-- **Multi-Level Approval Workflow** — Faculty reviews → Higher Faculty gives final approval
-- **NOC Generation** — Automatic PDF NOC generation on final approval (via DomPDF)
-- **Email Notifications** — Automated emails at every workflow stage (submission, review, NOC generation)
-- **Secure File Uploads** — Offer letters stored securely with role-based access
-- **Responsive Dashboards** — Separate dashboards per role with application tracking
+A full-featured web application for managing student internship **No Objection Certificate (NOC)** requests ΓÇö built with **Laravel 12**. It streamlines the multi-level approval workflow between students, faculty in-charge, and higher-level faculty, with automated email notifications and PDF NOC generation.
 
 ---
 
-## 🛠️ Tech Stack
+## Γ£¿ Features
+
+- **Role-Based Access Control** ΓÇö Three roles: Student, Faculty In-Charge, Higher-Level Faculty
+- **Internship Application Submission** ΓÇö Students submit applications with company details and offer letters
+- **Multi-Level Approval Workflow** ΓÇö Faculty reviews ΓåÆ Higher Faculty gives final approval
+- **NOC Generation** ΓÇö Automatic PDF NOC generation on final approval (via DomPDF)
+- **Email Notifications** ΓÇö Automated emails at every workflow stage (submission, review, NOC generation)
+- **Secure File Uploads** ΓÇö Offer letters stored securely with role-based access
+- **Responsive Dashboards** ΓÇö Separate dashboards per role with application tracking
+
+---
+
+## ≡ƒ¢á∩╕Å Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
@@ -30,19 +30,19 @@ A full-featured web application for managing student internship **No Objection C
 
 ---
 
-## ⚙️ Prerequisites
+## ΓÜÖ∩╕Å Prerequisites
 
 Make sure the following are installed on your machine before proceeding:
 
-- **PHP** >= 8.2 → [php.net/downloads](https://www.php.net/downloads)
-- **Composer** >= 2.x → [getcomposer.org](https://getcomposer.org/)
-- **Node.js** >= 18.x + **npm** → [nodejs.org](https://nodejs.org/)
+- **PHP** >= 8.2 ΓåÆ [php.net/downloads](https://www.php.net/downloads)
+- **Composer** >= 2.x ΓåÆ [getcomposer.org](https://getcomposer.org/)
+- **Node.js** >= 18.x + **npm** ΓåÆ [nodejs.org](https://nodejs.org/)
 - **MySQL** >= 8.0 (or via XAMPP/WAMP/Laragon)
 - A **mail account** with SMTP access (Gmail recommended with App Password)
 
 ---
 
-## 🚀 Installation & Setup
+## ≡ƒÜÇ Installation & Setup
 
 ### 1. Clone the Repository
 
@@ -73,7 +73,7 @@ cp .env.example .env
 
 Then open `.env` and update the following sections:
 
-#### 🗄️ Database
+#### ≡ƒùä∩╕Å Database
 
 ```env
 DB_CONNECTION=mysql
@@ -84,7 +84,7 @@ DB_USERNAME=root
 DB_PASSWORD=your_mysql_password
 ```
 
-#### 📧 Mail (Gmail SMTP)
+#### ≡ƒôº Mail (Gmail SMTP)
 
 > **Note:** For Gmail, you must use an **App Password** (not your regular password).
 > Generate one at: [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
@@ -99,7 +99,7 @@ MAIL_FROM_ADDRESS=your-email@gmail.com
 MAIL_FROM_NAME="Internship NOC Portal"
 ```
 
-#### 🔧 App Settings (for local development)
+#### ≡ƒöº App Settings (for local development)
 
 ```env
 APP_ENV=local
@@ -145,15 +145,15 @@ npm run build
 
 ---
 
-## ▶️ Running the Application
+## Γû╢∩╕Å Running the Application
 
 ### Development Mode (with hot reload)
 
 ```bash
-# Terminal 1 — Laravel dev server
+# Terminal 1 ΓÇö Laravel dev server
 php artisan serve
 
-# Terminal 2 — Vite asset watcher
+# Terminal 2 ΓÇö Vite asset watcher
 npm run dev
 ```
 
@@ -167,7 +167,7 @@ composer run dev
 
 ---
 
-## 👥 User Roles & Access
+## ≡ƒæÑ User Roles & Access
 
 | Role | Description |
 |------|-------------|
@@ -184,34 +184,34 @@ composer run dev
 
 ---
 
-## 📁 Project Structure
+## ≡ƒôü Project Structure
 
 ```
 NOC-Portal/
-├── app/
-│   ├── Http/Controllers/     # Application, NOC, Faculty controllers
-│   ├── Models/               # User, Role, InternshipApplication, NOC, Approval
-│   └── Mail/                 # Mailable classes for email notifications
-├── database/
-│   ├── migrations/           # All DB table schemas
-│   └── seeders/              # RoleSeeder, TestUsersSeeder
-├── resources/
-│   ├── views/
-│   │   ├── dashboards/       # Student, Faculty, Higher-Faculty dashboards
-│   │   ├── student/          # Application create & show views
-│   │   ├── faculty/          # Faculty review views
-│   │   ├── higher-faculty/   # Final approval views
-│   │   ├── pdf/              # NOC PDF template
-│   │   └── emails/           # Email blade templates
-│   └── css/ & js/            # Frontend assets (compiled by Vite)
-├── routes/web.php            # All application routes
-├── public/images/            # Logos and signature images
-└── docs/                     # Project report and structure docs
+Γö£ΓöÇΓöÇ app/
+Γöé   Γö£ΓöÇΓöÇ Http/Controllers/     # Application, NOC, Faculty controllers
+Γöé   Γö£ΓöÇΓöÇ Models/               # User, Role, InternshipApplication, NOC, Approval
+Γöé   ΓööΓöÇΓöÇ Mail/                 # Mailable classes for email notifications
+Γö£ΓöÇΓöÇ database/
+Γöé   Γö£ΓöÇΓöÇ migrations/           # All DB table schemas
+Γöé   ΓööΓöÇΓöÇ seeders/              # RoleSeeder, TestUsersSeeder
+Γö£ΓöÇΓöÇ resources/
+Γöé   Γö£ΓöÇΓöÇ views/
+Γöé   Γöé   Γö£ΓöÇΓöÇ dashboards/       # Student, Faculty, Higher-Faculty dashboards
+Γöé   Γöé   Γö£ΓöÇΓöÇ student/          # Application create & show views
+Γöé   Γöé   Γö£ΓöÇΓöÇ faculty/          # Faculty review views
+Γöé   Γöé   Γö£ΓöÇΓöÇ higher-faculty/   # Final approval views
+Γöé   Γöé   Γö£ΓöÇΓöÇ pdf/              # NOC PDF template
+Γöé   Γöé   ΓööΓöÇΓöÇ emails/           # Email blade templates
+Γöé   ΓööΓöÇΓöÇ css/ & js/            # Frontend assets (compiled by Vite)
+Γö£ΓöÇΓöÇ routes/web.php            # All application routes
+Γö£ΓöÇΓöÇ public/images/            # Logos and signature images
+ΓööΓöÇΓöÇ docs/                     # Project report and structure docs
 ```
 
 ---
 
-## 📋 Key Artisan Commands
+## ≡ƒôï Key Artisan Commands
 
 ```bash
 # Clear all caches
@@ -229,21 +229,23 @@ php artisan pail
 
 ---
 
-## 🔒 Security Notes
+## ≡ƒöÆ Security Notes
 
-- Never commit your `.env` file — it is excluded via `.gitignore`
+- Never commit your `.env` file ΓÇö it is excluded via `.gitignore`
 - Use **App Passwords** for Gmail SMTP, not your account password
 - Set `APP_DEBUG=false` in production
-- Offer letter files are stored in `storage/app/private/` — not publicly accessible
+- Offer letter files are stored in `storage/app/private/` ΓÇö not publicly accessible
 
 ---
 
-## 📄 License
+## ≡ƒôä License
 
 This project is built for academic purposes under the **MIT License**.
 
 ---
 
-## 👨‍💻 Author
+## 👨‍💻 Authors
 
 **Manav** — [@manav-git01](https://github.com/manav-git01)
+
+**Meet** — [@Meet4593](https://github.com/Meet4593)
