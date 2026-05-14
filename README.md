@@ -1,4 +1,4 @@
-#Internship NOC Portal
+# Internship NOC Portal
 
 A full-featured web application for managing student internship **No Objection Certificate (NOC)** requests ΓÇö built with **Laravel 12**. It streamlines the multi-level approval workflow between students, faculty in-charge, and higher-level faculty, with automated email notifications and PDF NOC generation.
 
@@ -187,26 +187,122 @@ composer run dev
 ##  Project Structure
 
 ```
+```plaintext
 NOC-Portal/
-Γö£ΓöÇΓöÇ app/
-Γöé   Γö£ΓöÇΓöÇ Http/Controllers/     # Application, NOC, Faculty controllers
-Γöé   Γö£ΓöÇΓöÇ Models/               # User, Role, InternshipApplication, NOC, Approval
-Γöé   ΓööΓöÇΓöÇ Mail/                 # Mailable classes for email notifications
-Γö£ΓöÇΓöÇ database/
-Γöé   Γö£ΓöÇΓöÇ migrations/           # All DB table schemas
-Γöé   ΓööΓöÇΓöÇ seeders/              # RoleSeeder, TestUsersSeeder
-Γö£ΓöÇΓöÇ resources/
-Γöé   Γö£ΓöÇΓöÇ views/
-Γöé   Γöé   Γö£ΓöÇΓöÇ dashboards/       # Student, Faculty, Higher-Faculty dashboards
-Γöé   Γöé   Γö£ΓöÇΓöÇ student/          # Application create & show views
-Γöé   Γöé   Γö£ΓöÇΓöÇ faculty/          # Faculty review views
-Γöé   Γöé   Γö£ΓöÇΓöÇ higher-faculty/   # Final approval views
-Γöé   Γöé   Γö£ΓöÇΓöÇ pdf/              # NOC PDF template
-Γöé   Γöé   ΓööΓöÇΓöÇ emails/           # Email blade templates
-Γöé   ΓööΓöÇΓöÇ css/ & js/            # Frontend assets (compiled by Vite)
-Γö£ΓöÇΓöÇ routes/web.php            # All application routes
-Γö£ΓöÇΓöÇ public/images/            # Logos and signature images
-ΓööΓöÇΓöÇ docs/                     # Project report and structure docs
+│
+├── app/
+│   ├── Http/
+│   │   └── Controllers/
+│   │       ├── Auth/
+│   │       ├── Student/
+│   │       │   └── ApplicationController.php
+│   │       ├── Faculty/
+│   │       │   └── FacultyReviewController.php
+│   │       ├── HigherFaculty/
+│   │       │   └── FinalApprovalController.php
+│   │       └── NOCController.php
+│   │
+│   ├── Models/
+│   │   ├── User.php
+│   │   ├── Role.php
+│   │   ├── InternshipApplication.php
+│   │   ├── NOC.php
+│   │   └── Approval.php
+│   │
+│   ├── Mail/
+│   │   ├── ApplicationSubmittedMail.php
+│   │   ├── FacultyApprovedMail.php
+│   │   ├── FacultyRejectedMail.php
+│   │   ├── FinalApprovedMail.php
+│   │   └── NOCGeneratedMail.php
+│   │
+│   └── Providers/
+│
+├── bootstrap/
+│
+├── config/
+│
+├── database/
+│   ├── migrations/
+│   │   ├── create_users_table.php
+│   │   ├── create_roles_table.php
+│   │   ├── create_internship_applications_table.php
+│   │   ├── create_approvals_table.php
+│   │   └── create_nocs_table.php
+│   │
+│   └── seeders/
+│       ├── DatabaseSeeder.php
+│       ├── RoleSeeder.php
+│       └── TestUsersSeeder.php
+│
+├── public/
+│   ├── images/
+│   │   ├── college-logo.png
+│   │   ├── signature.png
+│   │   └── stamp.png
+│   │
+│   └── build/
+│
+├── resources/
+│   ├── css/
+│   ├── js/
+│   │
+│   └── views/
+│       ├── layouts/
+│       │   └── app.blade.php
+│       │
+│       ├── dashboards/
+│       │   ├── student-dashboard.blade.php
+│       │   ├── faculty-dashboard.blade.php
+│       │   └── higher-faculty-dashboard.blade.php
+│       │
+│       ├── student/
+│       │   ├── create-application.blade.php
+│       │   ├── application-status.blade.php
+│       │   └── application-details.blade.php
+│       │
+│       ├── faculty/
+│       │   ├── review-applications.blade.php
+│       │   └── application-review.blade.php
+│       │
+│       ├── higher-faculty/
+│       │   ├── final-review.blade.php
+│       │   └── approved-applications.blade.php
+│       │
+│       ├── pdf/
+│       │   └── noc-template.blade.php
+│       │
+│       ├── emails/
+│       │   ├── application-submitted.blade.php
+│       │   ├── faculty-approved.blade.php
+│       │   ├── faculty-rejected.blade.php
+│       │   ├── final-approved.blade.php
+│       │   └── noc-generated.blade.php
+│       │
+│       └── auth/
+│           ├── login.blade.php
+│           └── register.blade.php
+│
+├── routes/
+│   └── web.php
+│
+├── storage/
+│
+├── tests/
+│
+├── docs/
+│   ├── project-report.pdf
+│   ├── database-schema.png
+│   └── project-structure.md
+│
+├── .env
+├── artisan
+├── composer.json
+├── package.json
+├── vite.config.js
+└── README.md
+```
+
 ```
 
 ---
