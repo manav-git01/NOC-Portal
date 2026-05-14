@@ -1,10 +1,10 @@
-# ≡ƒÄô Internship NOC Portal
+#Internship NOC Portal
 
 A full-featured web application for managing student internship **No Objection Certificate (NOC)** requests ΓÇö built with **Laravel 12**. It streamlines the multi-level approval workflow between students, faculty in-charge, and higher-level faculty, with automated email notifications and PDF NOC generation.
 
 ---
 
-## Γ£¿ Features
+##  Features
 
 - **Role-Based Access Control** ΓÇö Three roles: Student, Faculty In-Charge, Higher-Level Faculty
 - **Internship Application Submission** ΓÇö Students submit applications with company details and offer letters
@@ -16,7 +16,7 @@ A full-featured web application for managing student internship **No Objection C
 
 ---
 
-## ≡ƒ¢á∩╕Å Tech Stack
+##  Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
@@ -30,7 +30,7 @@ A full-featured web application for managing student internship **No Objection C
 
 ---
 
-## ΓÜÖ∩╕Å Prerequisites
+##  Prerequisites
 
 Make sure the following are installed on your machine before proceeding:
 
@@ -42,7 +42,7 @@ Make sure the following are installed on your machine before proceeding:
 
 ---
 
-## ≡ƒÜÇ Installation & Setup
+##  Installation & Setup
 
 ### 1. Clone the Repository
 
@@ -73,7 +73,7 @@ cp .env.example .env
 
 Then open `.env` and update the following sections:
 
-#### ≡ƒùä∩╕Å Database
+####  Database
 
 ```env
 DB_CONNECTION=mysql
@@ -84,7 +84,7 @@ DB_USERNAME=root
 DB_PASSWORD=your_mysql_password
 ```
 
-#### ≡ƒôº Mail (Gmail SMTP)
+#### Mail (Gmail SMTP)
 
 > **Note:** For Gmail, you must use an **App Password** (not your regular password).
 > Generate one at: [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
@@ -99,7 +99,7 @@ MAIL_FROM_ADDRESS=your-email@gmail.com
 MAIL_FROM_NAME="Internship NOC Portal"
 ```
 
-#### ≡ƒöº App Settings (for local development)
+####  App Settings (for local development)
 
 ```env
 APP_ENV=local
@@ -145,7 +145,7 @@ npm run build
 
 ---
 
-## Γû╢∩╕Å Running the Application
+##  Running the Application
 
 ### Development Mode (with hot reload)
 
@@ -167,7 +167,7 @@ composer run dev
 
 ---
 
-## ≡ƒæÑ User Roles & Access
+##  User Roles & Access
 
 | Role | Description |
 |------|-------------|
@@ -184,7 +184,7 @@ composer run dev
 
 ---
 
-## ≡ƒôü Project Structure
+##  Project Structure
 
 ```
 NOC-Portal/
@@ -211,7 +211,7 @@ NOC-Portal/
 
 ---
 
-## ≡ƒôï Key Artisan Commands
+##  Key Artisan Commands
 
 ```bash
 # Clear all caches
@@ -229,7 +229,7 @@ php artisan pail
 
 ---
 
-## ≡ƒöÆ Security Notes
+##  Security Notes
 
 - Never commit your `.env` file ΓÇö it is excluded via `.gitignore`
 - Use **App Passwords** for Gmail SMTP, not your account password
@@ -238,7 +238,7 @@ php artisan pail
 
 ---
 
-## ≡ƒôä License
+##  License
 
 This project is built for academic purposes under the **MIT License**.
 
