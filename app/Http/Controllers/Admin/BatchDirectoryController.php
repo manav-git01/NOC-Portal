@@ -260,4 +260,65 @@ class BatchDirectoryController extends Controller
 
         return redirect()->back()->with('success', "Batch {$batch->name} guide updated to {$newGuide->name} successfully. {$students->count()} students updated.");
     }
+
+    /**
+     * Bulk transfer multiple students to another batch.
+     */
+    public function bulkTransfer(Request $request)
+    {
+        $request->validate([
+            'student_ids' => 'required|array',
+            'student_ids.*' => 'exists:users,id',
+            'batch_id' => 'required|exists:batches,id',
+        ]);
+
+        $studentIds = $request->student_ids;
+        $batchId = $request->batch_id;
+        $newBatch = Batch::findOrFail($batchId);
+
+        DB::transaction(function() use ($studentIds, $newBatch) {
+            foreach ($studentIds as $id) {
+                $student = User::find($id);
+                if ($student) {
+                    $student->update([
+                        'batch_id' => $newBatch->id,
+                    ]);
+
+                    // Assign new batch's guide if exists and student has no guide
+                    if ($newBatch->guide_id && $student->guide_id !== $newBatch->guide_id) {
+                        $oldGuideId = $student->guide_id;
+                        $student->update(['guide_id' => $newBatch->guide_id]);
+
+                        GuideAssignment::where('student_id', $student->id)
+                            ->whereNull('unassigned_at')
+                            ->update(['unassigned_at' => now()]);
+
+                        GuideAssignment::create([
+                            'student_id' => $student->id,
+                            'guide_id' => $newBatch->guide_id,
+                            'assigned_by' => auth()->id(),
+                            'assigned_at' => now(),
+                        ]);
+
+                        GuideHistory::create([
+                            'student_id' => $student->id,
+                            'old_guide_id' => $oldGuideId,
+                            'new_guide_id' => $newBatch->guide_id,
+                            'changed_by' => auth()->id(),
+                        ]);
+                    }
+                }
+            }
+        });
+
+        // Audit Log using log helper
+        AuditLog::log(
+            "Bulk transferred " . count($studentIds) . " students to batch: {$newBatch->name}",
+            "Batch ID: {$newBatch->id}",
+            "batch_change",
+            ['student_ids' => $studentIds, 'batch_id' => $newBatch->id]
+        );
+
+        return redirect()->back()->with('success', 'Students transferred successfully to batch: ' . $newBatch->name);
+    }
 }

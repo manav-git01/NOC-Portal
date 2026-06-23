@@ -8,6 +8,12 @@ use App\Http\Controllers\HigherFaculty\NocController;
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\BatchDirectoryController;
 use App\Http\Controllers\Admin\MentorMappingArchiveController;
+use App\Http\Controllers\Admin\StudentDirectoryController;
+use App\Http\Controllers\Admin\FacultyDirectoryController;
+use App\Http\Controllers\Admin\GuideAssignmentController;
+use App\Http\Controllers\Admin\AuthorityManagementController;
+use App\Http\Controllers\Admin\AccountManagementController;
+use App\Http\Controllers\Admin\AuditLogController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 
@@ -96,6 +102,41 @@ Route::middleware(['auth', 'role:higher_faculty', 'higher_faculty_approval'])->p
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
 
+    // Student Directory (Module 1)
+    Route::get('/student-directory', [StudentDirectoryController::class, 'index'])->name('student-directory.index');
+    Route::post('/student-directory', [StudentDirectoryController::class, 'store'])->name('student-directory.store');
+    Route::put('/student-directory/{user}', [StudentDirectoryController::class, 'update'])->name('student-directory.update');
+    Route::delete('/student-directory/{user}', [StudentDirectoryController::class, 'destroy'])->name('student-directory.destroy');
+    Route::post('/student-directory/import', [StudentDirectoryController::class, 'import'])->name('student-directory.import');
+    Route::post('/student-directory/{user}/assign-guide', [StudentDirectoryController::class, 'assignGuide'])->name('student-directory.assign-guide');
+    Route::post('/student-directory/{user}/remove-guide', [StudentDirectoryController::class, 'removeGuide'])->name('student-directory.remove-guide');
+    Route::post('/student-directory/{user}/move-batch', [StudentDirectoryController::class, 'moveBatch'])->name('student-directory.move-batch');
+
+    // Faculty Directory (Module 2)
+    Route::get('/faculty-directory', [FacultyDirectoryController::class, 'index'])->name('faculty-directory.index');
+    Route::post('/faculty-directory', [FacultyDirectoryController::class, 'store'])->name('faculty-directory.store');
+    Route::put('/faculty-directory/{user}', [FacultyDirectoryController::class, 'update'])->name('faculty-directory.update');
+    Route::post('/faculty-directory/{user}/deactivate', [FacultyDirectoryController::class, 'deactivate'])->name('faculty-directory.deactivate');
+    Route::delete('/faculty-directory/{user}', [FacultyDirectoryController::class, 'destroy'])->name('faculty-directory.destroy');
+
+    // Guide Assignment Center (Module 3 & 4)
+    Route::get('/guide-assignments', [GuideAssignmentController::class, 'index'])->name('guide-assignments.index');
+    Route::post('/guide-assignments/assign', [GuideAssignmentController::class, 'assign'])->name('guide-assignments.assign');
+    Route::post('/guide-assignments/release/{user}', [GuideAssignmentController::class, 'release'])->name('guide-assignments.release');
+    Route::post('/guide-assignments/bulk-assign', [GuideAssignmentController::class, 'bulkAssign'])->name('guide-assignments.bulk-assign');
+
+    // Authority Management (Module 6)
+    Route::get('/authority-management', [AuthorityManagementController::class, 'index'])->name('authority-management.index');
+    Route::put('/authority-management/{user}', [AuthorityManagementController::class, 'update'])->name('authority-management.update');
+
+    // Account Management (Module 9)
+    Route::get('/account-management', [AccountManagementController::class, 'index'])->name('account-management.index');
+    Route::post('/account-management/{user}/activate', [AccountManagementController::class, 'activate'])->name('account-management.activate');
+    Route::post('/account-management/{user}/deactivate', [AccountManagementController::class, 'deactivate'])->name('account-management.deactivate');
+
+    // Audit Logs (Module 10)
+    Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
+
     // Batches CRUD
     Route::post('/batches', [AdminDashboardController::class, 'storeBatch'])->name('batches.store');
     Route::put('/batches/{batch}', [AdminDashboardController::class, 'updateBatch'])->name('batches.update');
@@ -126,12 +167,14 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/students/{student}/change-batch', [BatchDirectoryController::class, 'updateStudentBatch'])->name('students.change-batch');
     Route::post('/students/{student}/change-guide', [BatchDirectoryController::class, 'updateStudentGuide'])->name('students.change-guide');
     Route::post('/batches/{batch}/change-guide', [BatchDirectoryController::class, 'updateBatchGuide'])->name('batches.change-guide');
+    Route::post('/batches/bulk-transfer', [BatchDirectoryController::class, 'bulkTransfer'])->name('batches.bulk-transfer');
 
     // Mentor Mapping Archive management
     Route::get('/mentor-mapping/archives', [MentorMappingArchiveController::class, 'index'])->name('mentor-mapping.archives');
     Route::get('/mentor-mapping/archives/{archive}', [MentorMappingArchiveController::class, 'show'])->name('mentor-mapping.archives.show');
     Route::post('/mentor-mapping/archives/{archive}/restore', [MentorMappingArchiveController::class, 'restore'])->name('mentor-mapping.archives.restore');
     Route::get('/mentor-mapping/archives/{archive}/download', [MentorMappingArchiveController::class, 'downloadReport'])->name('mentor-mapping.archives.download');
+    Route::get('/mentor-mapping/archives/{archive}/compare/{other}', [MentorMappingArchiveController::class, 'compare'])->name('mentor-mapping.archives.compare');
 
     // System Diagnostics (AJAX)
     Route::get('/system-diagnostics', [AdminDashboardController::class, 'systemDiagnostics'])->name('system-diagnostics');

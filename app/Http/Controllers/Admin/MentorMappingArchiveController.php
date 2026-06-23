@@ -171,4 +171,62 @@ class MentorMappingArchiveController extends Controller
 
         return response()->stream($callback, 200, $headers);
     }
+
+    /**
+     * Compare two archived mentor mapping snapshots.
+     */
+    public function compare(MentorMappingArchive $archive, MentorMappingArchive $other)
+    {
+        $itemsA = $archive->items()->get()->keyBy('enrollment_number');
+        $itemsB = $other->items()->get()->keyBy('enrollment_number');
+
+        $added = [];
+        $removed = [];
+        $guideChanges = [];
+        $batchChanges = [];
+
+        foreach ($itemsB as $enrollment => $itemB) {
+            if (!$itemsA->has($enrollment)) {
+                $added[] = [
+                    'enrollment' => $enrollment,
+                    'name' => $itemB->student_name,
+                    'batch' => $itemB->batch_name ?? 'N/A',
+                    'guide' => $itemB->guide_name ?? 'N/A',
+                ];
+            } else {
+                $itemA = $itemsA->get($enrollment);
+                
+                if ($itemA->guide_name !== $itemB->guide_name) {
+                    $guideChanges[] = [
+                        'enrollment' => $enrollment,
+                        'name' => $itemB->student_name,
+                        'old_guide' => $itemA->guide_name ?? 'None',
+                        'new_guide' => $itemB->guide_name ?? 'None',
+                    ];
+                }
+
+                if ($itemA->batch_name !== $itemB->batch_name) {
+                    $batchChanges[] = [
+                        'enrollment' => $enrollment,
+                        'name' => $itemB->student_name,
+                        'old_batch' => $itemA->batch_name ?? 'None',
+                        'new_batch' => $itemB->batch_name ?? 'None',
+                    ];
+                }
+            }
+        }
+
+        foreach ($itemsA as $enrollment => $itemA) {
+            if (!$itemsB->has($enrollment)) {
+                $removed[] = [
+                    'enrollment' => $enrollment,
+                    'name' => $itemA->student_name,
+                    'batch' => $itemA->batch_name ?? 'N/A',
+                    'guide' => $itemA->guide_name ?? 'N/A',
+                ];
+            }
+        }
+
+        return view('admin.archives.compare', compact('archive', 'other', 'added', 'removed', 'guideChanges', 'batchChanges'));
+    }
 }

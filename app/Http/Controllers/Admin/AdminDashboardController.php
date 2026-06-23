@@ -9,6 +9,7 @@ use App\Models\GuideAssignment;
 use App\Models\InternshipApplication;
 use App\Models\Noc;
 use App\Models\Role;
+use App\Models\AuditLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
@@ -771,16 +772,12 @@ class AdminDashboardController extends Controller
         $successCount = 0;
         $warnings = [];
         $createdStudentCount = 0;
-        $createdFacultyCount = 0;
         $mappingsCreatedCount = 0;
         $mappingsUpdatedCount = 0;
-        $updatedFacultyEmails = [];
         $createdBatchesCount = 0;
-        $failedCount = 0;
+        $createdFacultyCount = 0;
         $totalRows = count($previewRows);
-        $createdAccounts = [];
 
-        $facultyRole = Role::where('name', 'faculty')->first() ?? (object)['id' => 2];
         $studentRole = Role::where('name', 'student')->first() ?? (object)['id' => 1];
 
         DB::beginTransaction();
@@ -801,13 +798,11 @@ class AdminDashboardController extends Controller
                 $finalPath
             );
 
-            $fastHasher = new \Illuminate\Hashing\BcryptHasher(['rounds' => 4]);
-
             foreach ($previewRows as $row) {
                 $enrollment = $row['enrollment'];
-                $mentorName = $row['mentor_name'];
-                $mentorEmail = $row['mentor_email'];
-                $batchName = $row['batch'];
+                $mentorName = $row['mentor_name'] ?? 'N/A';
+                $mentorEmail = $row['mentor_email'] ?? 'N/A';
+                $batchName = $row['batch'] ?? 'N/A';
 
                 // Check mapping type (create vs update)
                 $studentExisted = User::where('enrollment_number', $enrollment)->exists();
@@ -825,7 +820,7 @@ class AdminDashboardController extends Controller
                     $mappingsUpdatedCount++;
                 }
 
-                // 1. Get student or auto-create
+                // 1. Get student or create inactive directory student record
                 $student = User::where('enrollment_number', $enrollment)->first();
                 if (!$student) {
                     $studentEmail = strtolower($enrollment) . '@charusat.edu.in';
@@ -841,27 +836,16 @@ class AdminDashboardController extends Controller
                             'name' => $studentName,
                             'email' => $studentEmail,
                             'enrollment_number' => $enrollment,
-                            'password' => $fastHasher->make(strtoupper($enrollment)),
+                            'password' => Hash::make(\Illuminate\Support\Str::random(16)),
                             'role_id' => $studentRole->id,
                             'department' => 'IT',
                             'semester' => '7', // Default semester
                             'status' => 'Active',
+                            'account_status' => 'inactive', // inactive/directory-only record
                             'phone' => 'N/A',
-                            'must_change_password' => true,
                         ]);
                         $createdStudentCount++;
-
-                        $createdAccounts[] = [
-                            'type' => 'Student',
-                            'name' => $studentName,
-                            'identifier' => $enrollment,
-                            'email' => $studentEmail,
-                            'password_pattern' => 'Enrollment Number',
-                            'mentor_name' => $mentorName ?: 'N/A',
-                            'mentor_email' => $mentorEmail ?: 'N/A',
-                        ];
                     } else {
-                        // User exists but has no enrollment number set
                         $student->update(['enrollment_number' => $enrollment]);
                     }
                 }
@@ -877,48 +861,26 @@ class AdminDashboardController extends Controller
                     $batchId = $batch->id;
                 }
 
-                // 3. Faculty handling
+                // 3. Faculty handling (Auto-create guide if not found)
                 $newGuideId = null;
-                if (!empty($mentorName) && $mentorName !== 'N/A' && !empty($mentorEmail) && $mentorEmail !== 'N/A') {
+                if (!empty($mentorEmail) && $mentorEmail !== 'N/A') {
                     $guide = User::where('email', $mentorEmail)->first();
-                    if (!$guide) {
-                        // Generate a faculty ID
-                        $facultyId = 'F' . strtoupper(substr(md5($mentorName), 0, 6));
-
-                        // Generate password using FirstName123
-                        $cleanMentorName = preg_replace('/^(dr|prof|mr|mrs|ms|shri)\.?\s+/i', '', $mentorName);
-                        $parts = explode(' ', trim($cleanMentorName));
-                        $firstName = !empty($parts[0]) ? $parts[0] : 'Faculty';
-                        $facultyPassword = $firstName . '123';
-
+                    if ($guide) {
+                        $newGuideId = $guide->id;
+                    } else {
+                        // Create Faculty Guide
+                        $facultyRole = Role::where('name', 'faculty')->first() ?? (object)['id' => 2];
                         $guide = User::create([
                             'name' => $mentorName,
                             'email' => $mentorEmail,
-                            'faculty_id' => $facultyId,
-                            'department' => 'IT',
-                            'designation' => 'Assistant Professor',
-                            'status' => 'Active',
+                            'password' => Hash::make('password123'),
                             'role_id' => $facultyRole->id,
                             'phone' => 'N/A',
-                            'password' => $fastHasher->make($facultyPassword),
-                            'must_change_password' => true,
+                            'account_status' => 'active',
                         ]);
+                        $newGuideId = $guide->id;
                         $createdFacultyCount++;
-
-                        $createdAccounts[] = [
-                            'type' => 'Faculty',
-                            'name' => $mentorName,
-                            'identifier' => $facultyId,
-                            'email' => $mentorEmail,
-                            'password_pattern' => 'FirstName123',
-                            'mentor_name' => 'N/A',
-                            'mentor_email' => 'N/A',
-                        ];
-                    } else {
-                        $updatedFacultyEmails[] = $mentorEmail;
                     }
-                    $guide->assignPermission('guide');
-                    $newGuideId = $guide->id;
                 }
 
                 // 4. Update student mapping
@@ -928,6 +890,7 @@ class AdminDashboardController extends Controller
                 $student->update([
                     'guide_id' => $newGuideId,
                     'batch_id' => $batchId,
+                    'is_locked' => $newGuideId ? true : $student->is_locked,
                 ]);
 
                 // Terminate existing guide assignment if guide changed
@@ -980,39 +943,29 @@ class AdminDashboardController extends Controller
                 ->with('error', 'Import failed due to database error: ' . $e->getMessage());
         }
 
-        $updatedFacultyCount = count(array_unique($updatedFacultyEmails));
-
         $report = [
             'type' => 'Mentor Mapping',
             'success' => $successCount, // Mapped Students
             'created_students' => $createdStudentCount,
             'created_faculty' => $createdFacultyCount,
-            'updated_faculty' => $updatedFacultyCount,
+            'updated_faculty' => 0,
             'created_batches' => $createdBatchesCount,
             'mappings_created' => $mappingsCreatedCount,
             'mappings_updated' => $mappingsUpdatedCount,
             'total_rows' => $totalRows, // Imported Students
-            'failed' => $failedCount,
+            'failed' => count($warnings),
             'upload_date' => now()->format('M d, Y h:i A'),
             'duplicates' => 0,
             'errors' => $warnings,
         ];
 
-        // Audit Log
-        $adminName = auth()->user()->name;
-        $targetRecord = "File: {$fileName}, Mapped Students: {$successCount}, Created Students: {$createdStudentCount}, Created Faculty: {$createdFacultyCount}";
-        \App\Models\AuditLog::create([
-            'admin_name' => $adminName,
-            'action' => 'Imported Mentor Mapping',
-            'target' => $targetRecord,
-            'timestamp' => now(),
-        ]);
-        Log::info("Admin {$adminName} imported mentor mapping: {$targetRecord}");
-
-        if (!empty($createdAccounts)) {
-            session(['created_accounts_report' => $createdAccounts]);
-            session(['mentor_mapping_created_accounts' => $createdAccounts]);
-        }
+        // Audit Log using log helper
+        AuditLog::log(
+            "Imported Mentor Mapping sheet: {$fileName}",
+            "Mapped Students: {$successCount}",
+            "mentor_mapping_import",
+            ['mapped_count' => $successCount, 'warnings' => $warnings]
+        );
 
         return redirect()->route('admin.dashboard', ['tab' => 'mentor_mapping'])
             ->with([

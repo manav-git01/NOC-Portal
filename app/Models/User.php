@@ -32,6 +32,8 @@ class User extends Authenticatable
         'faculty_id',
         'designation',
         'status',
+        'account_status',
+        'is_locked',
         'authority_type',
         'must_change_password',
         'profile_photo_path',
@@ -58,6 +60,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'must_change_password' => 'boolean',
+            'is_locked' => 'boolean',
         ];
     }
 
@@ -287,5 +290,37 @@ class User extends Authenticatable
             $initials = mb_substr($initials, 0, 2);
         }
         return mb_strtoupper($initials);
+    }
+
+    /**
+     * Check if the user's guide assignment is locked.
+     */
+    public function isLocked(): bool
+    {
+        return (bool) $this->is_locked;
+    }
+
+    /**
+     * Check if the user account is active.
+     */
+    public function isActive(): bool
+    {
+        return $this->account_status === 'active';
+    }
+
+    /**
+     * Scope a query to only include students without a guide.
+     */
+    public function scopeUnassigned($query)
+    {
+        return $query->whereNull('guide_id');
+    }
+
+    /**
+     * Scope a query to only include students with a guide.
+     */
+    public function scopeAssigned($query)
+    {
+        return $query->whereNotNull('guide_id');
     }
 }
