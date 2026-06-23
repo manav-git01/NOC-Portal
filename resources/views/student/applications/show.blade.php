@@ -354,6 +354,15 @@
                         Download NOC
                     </a>
                 @endif
+                @if($application->status === 'faculty_approved' && !$application->noc_requested)
+                    <form action="{{ route('student.applications.request-noc', $application) }}" method="POST" class="inline">
+                        @csrf
+                        <button type="submit" class="inline-flex items-center px-8 py-4 bg-gradient-to-r from-purple-600 to-indigo-600 border border-transparent rounded-xl font-bold text-base text-white uppercase tracking-wider hover:from-purple-700 hover:to-indigo-700 transform hover:scale-105 transition-all duration-200 shadow-lg">
+                            <i class="fas fa-file-invoice text-xl mr-3"></i>
+                            Request NOC
+                        </button>
+                    </form>
+                @endif
             </div>
             
             <div class="flex justify-center">

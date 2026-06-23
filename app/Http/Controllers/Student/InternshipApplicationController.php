@@ -77,7 +77,9 @@ class InternshipApplicationController extends Controller
         })->get();
         
         foreach ($facultyMembers as $faculty) {
-            Mail::to($faculty->email)->send(new ApplicationSubmitted($application));
+            if (env('MAIL_NOTIFICATIONS_ENABLED', true)) {
+                Mail::to($faculty->email)->send(new ApplicationSubmitted($application));
+            }
         }
 
         return redirect()->route('dashboard')
@@ -119,7 +121,9 @@ class InternshipApplicationController extends Controller
         })->get();
 
         foreach ($higherFacultyMembers as $higherFaculty) {
-            Mail::to($higherFaculty->email)->send(new \App\Mail\NocRequested($application));
+            if (env('MAIL_NOTIFICATIONS_ENABLED', true)) {
+                Mail::to($higherFaculty->email)->send(new \App\Mail\NocRequested($application));
+            }
         }
 
         return redirect()->route('student.applications.show', $application)

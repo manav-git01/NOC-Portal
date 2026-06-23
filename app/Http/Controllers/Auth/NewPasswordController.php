@@ -48,6 +48,15 @@ class NewPasswordController extends Controller
                 ])->save();
 
                 event(new PasswordReset($user));
+
+                // Log Password Reset in Audit Log
+                $roleDisplay = $user->role ? ucfirst($user->role->name) : 'User';
+                \App\Models\AuditLog::create([
+                    'admin_name' => "{$user->name} ({$roleDisplay})",
+                    'action' => 'Password Reset',
+                    'target' => "User: {$user->name} ({$user->email}) reset password using token",
+                    'timestamp' => now(),
+                ]);
             }
         );
 

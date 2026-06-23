@@ -6,11 +6,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -26,6 +27,14 @@ class User extends Authenticatable
         'enrollment_number',
         'department',
         'semester',
+        'batch_id',
+        'guide_id',
+        'faculty_id',
+        'designation',
+        'status',
+        'authority_type',
+        'must_change_password',
+        'profile_photo_path',
     ];
 
     /**
@@ -48,6 +57,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'must_change_password' => 'boolean',
         ];
     }
 
@@ -76,11 +86,61 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the batch this student belongs to.
+     */
+    public function batch()
+    {
+        return $this->belongsTo(Batch::class, 'batch_id');
+    }
+
+    /**
+     * Get the guide assigned to this student.
+     */
+    public function guide()
+    {
+        return $this->belongsTo(User::class, 'guide_id');
+    }
+
+    /**
+     * Get the students assigned to this guide.
+     */
+    public function students()
+    {
+        return $this->hasMany(User::class, 'guide_id');
+    }
+
+    /**
+     * Get the history of guide assignments for this student.
+     */
+    public function guideAssignments()
+    {
+        return $this->hasMany(GuideAssignment::class, 'student_id');
+    }
+
+    /**
      * Check if user has a specific role.
      */
     public function hasRole($roleName)
     {
-        return $this->role && $this->role->name === $roleName;
+        if (!$this->role) {
+            return false;
+        }
+        
+        $userRole = $this->role->name;
+        
+        if ($roleName === 'admin' || $roleName === 'student') {
+            return $userRole === $roleName;
+        }
+        
+        if ($roleName === 'faculty') {
+            return in_array($userRole, ['faculty', 'higher_faculty']) || $this->permissions()->exists();
+        }
+        
+        if ($roleName === 'higher_faculty') {
+            return $userRole === 'higher_faculty' || $this->hasPermission('noc_authority');
+        }
+        
+        return $userRole === $roleName;
     }
 
     /**
@@ -105,5 +165,127 @@ class User extends Authenticatable
     public function isHigherFaculty()
     {
         return $this->hasRole('higher_faculty');
+    }
+
+    /**
+     * Check if user is an admin.
+     */
+    public function isAdmin()
+    {
+        return $this->hasRole('admin');
+    }
+
+    /**
+     * Permissions relationship
+     */
+    public function permissions()
+    {
+        return $this->hasMany(FacultyPermission::class, 'user_id');
+    }
+
+    /**
+     * Check if user has a specific permission
+     */
+    public function hasPermission($permission)
+    {
+        return $this->permissions->contains('permission', $permission);
+    }
+
+    /**
+     * Assign a permission
+     */
+    public function assignPermission($permission)
+    {
+        return $this->permissions()->firstOrCreate(['permission' => $permission]);
+    }
+
+    /**
+     * Revoke a permission
+     */
+    public function revokePermission($permission)
+    {
+        return $this->permissions()->where('permission', $permission)->delete();
+    }
+
+    /**
+     * Sync permissions
+     */
+    public function syncPermissions(array $permissions)
+    {
+        $this->permissions()->whereNotIn('permission', $permissions)->delete();
+        foreach ($permissions as $perm) {
+            $this->permissions()->firstOrCreate(['permission' => $perm]);
+        }
+    }
+
+    /**
+     * Check if user is an approval faculty (can approve/reject internships).
+     */
+    public function isApprovalFaculty()
+    {
+        return $this->hasPermission('approval_faculty');
+    }
+
+    /**
+     * Check if user is a NOC authority (can generate NOCs, final approval).
+     */
+    public function isNocAuthority()
+    {
+        return $this->hasPermission('noc_authority');
+    }
+
+    /**
+     * Check if user is a guide faculty.
+     */
+    public function isGuideFaculty()
+    {
+        return $this->hasPermission('guide') || $this->students()->exists();
+    }
+
+    /**
+     * Get the display name for the user's authority type.
+     */
+    public function getAuthorityDisplayAttribute()
+    {
+        if ($this->isAdmin()) {
+            return 'Administrator';
+        }
+        if ($this->isStudent()) {
+            return 'Student';
+        }
+        
+        $perms = $this->permissions->pluck('permission')->toArray();
+        if (empty($perms)) {
+            return $this->isFaculty() ? 'Guide Faculty' : 'N/A';
+        }
+        
+        $labels = [];
+        if (in_array('guide', $perms)) {
+            $labels[] = 'Guide Faculty';
+        }
+        if (in_array('approval_faculty', $perms)) {
+            $labels[] = 'Approval Faculty';
+        }
+        if (in_array('noc_authority', $perms)) {
+            $labels[] = 'NOC Authority';
+        }
+        
+        return implode(', ', $labels);
+    }
+
+    /**
+     * Get the initials for the user's name.
+     */
+    public function getInitialsAvatarAttribute()
+    {
+        $words = preg_split("/\s+/", trim($this->name));
+        $initials = '';
+        foreach ($words as $w) {
+            $initials .= mb_substr($w, 0, 1);
+        }
+        if (mb_strlen($initials) > 2) {
+            $initials = mb_substr($initials, 0, 2);
+        }
+        return mb_strtoupper($initials);
     }
 }

@@ -25,7 +25,11 @@ return new class extends Migration
             $table->text('internship_description')->nullable();
             $table->string('company_letter_path')->nullable(); // uploaded document
             $table->string('additional_documents')->nullable(); // JSON array of paths
-            $table->enum('status', ['pending', 'faculty_approved', 'faculty_rejected', 'higher_faculty_approved', 'higher_faculty_rejected', 'noc_generated'])->default('pending');
+            if (Schema::getConnection()->getDriverName() === 'sqlite') {
+                $table->string('status')->default('pending');
+            } else {
+                $table->enum('status', ['pending', 'faculty_approved', 'faculty_rejected', 'higher_faculty_approved', 'higher_faculty_rejected', 'noc_generated'])->default('pending');
+            }
             $table->text('faculty_remarks')->nullable();
             $table->text('higher_faculty_remarks')->nullable();
             $table->timestamp('submitted_at')->nullable();

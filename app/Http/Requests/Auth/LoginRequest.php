@@ -31,7 +31,6 @@ class LoginRequest extends FormRequest
                 'required', 
                 'string', 
                 'email',
-                'regex:/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.(edu\.in|ac\.in)$/'
             ],
             'password' => ['required', 'string'],
         ];
@@ -44,9 +43,7 @@ class LoginRequest extends FormRequest
      */
     public function messages(): array
     {
-        return [
-            'email.regex' => 'Only institutional email addresses (@edu.in for students, @ac.in for faculty) are allowed to access this portal.',
-        ];
+        return [];
     }
 
     /**

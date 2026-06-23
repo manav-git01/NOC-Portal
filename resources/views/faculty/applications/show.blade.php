@@ -314,7 +314,7 @@
         @endif
 
         <!-- Approval/Rejection Form (Only for Pending Applications) -->
-        @if($application->status === 'pending')
+        @if($application->status === 'pending' && auth()->user()->isApprovalFaculty())
         <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
             <div class="bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-4">
                 <h3 class="text-xl font-bold text-white flex items-center">

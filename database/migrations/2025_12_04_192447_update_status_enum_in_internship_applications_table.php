@@ -11,7 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        \DB::statement("ALTER TABLE internship_applications CHANGE status status ENUM('pending', 'faculty_approved', 'faculty_rejected', 'pending_higher', 'higher_faculty_approved', 'higher_faculty_rejected', 'noc_generated') DEFAULT 'pending'");
+        if (Schema::getConnection()->getDriverName() !== 'sqlite') {
+            \DB::statement("ALTER TABLE internship_applications CHANGE status status ENUM('pending', 'faculty_approved', 'faculty_rejected', 'pending_higher', 'higher_faculty_approved', 'higher_faculty_rejected', 'noc_generated') DEFAULT 'pending'");
+        }
     }
 
     /**
@@ -19,6 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        \DB::statement("ALTER TABLE internship_applications CHANGE status status ENUM('pending', 'faculty_approved', 'faculty_rejected', 'higher_faculty_approved', 'higher_faculty_rejected', 'noc_generated') DEFAULT 'pending'");
+        if (Schema::getConnection()->getDriverName() !== 'sqlite') {
+            \DB::statement("ALTER TABLE internship_applications CHANGE status status ENUM('pending', 'faculty_approved', 'faculty_rejected', 'higher_faculty_approved', 'higher_faculty_rejected', 'noc_generated') DEFAULT 'pending'");
+        }
     }
 };

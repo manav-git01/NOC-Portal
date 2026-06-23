@@ -66,10 +66,10 @@
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between items-center h-16">
                     <!-- Logo and Brand -->
-                    <div class="flex items-center space-x-3">
+                    <a href="{{ url('/') }}" class="flex items-center space-x-3">
                         <img src="{{ asset('images/cspit_logo.png') }}" alt="CSPIT Logo" class="w-10 h-10 object-contain">
-                        <span class="text-gray-800 text-xl font-bold">InternshipNOC Portal</span>
-                    </div>
+                        <span class="text-gray-800 text-xl font-bold font-sans">InternshipNOC Portal</span>
+                    </a>
                     
                     <!-- Auth Buttons -->
                     <div class="flex items-center space-x-3">

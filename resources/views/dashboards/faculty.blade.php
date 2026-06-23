@@ -3,31 +3,7 @@
 @section('content')
 <div class="min-h-screen bg-gray-50 pb-10">
     <!-- Top Navigation Bar -->
-    <nav class="bg-white shadow-sm mb-8">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-16">
-                <!-- Left Side - User Info -->
-                <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
-                        <i class="fas fa-chalkboard-teacher text-white"></i>
-                    </div>
-                    <div class="text-left">
-                        <p class="text-sm font-bold text-gray-900">{{ auth()->user()->name }}</p>
-                        <p class="text-xs text-gray-500">Faculty - {{ auth()->user()->department }}</p>
-                    </div>
-                </div>
-
-                <!-- Right Side - Logout -->
-                <form method="POST" action="{{ route('logout') }}">
-                    @csrf
-                    <button type="submit" class="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition font-medium text-sm">
-                        <i class="fas fa-sign-out-alt"></i>
-                        <span>Logout</span>
-                    </button>
-                </form>
-            </div>
-        </div>
-    </nav>
+    @include('layouts.navigation')
 
     <!-- Main Content -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -14,6 +14,10 @@ class ApprovalController extends Controller
 {
     public function show(InternshipApplication $application)
     {
+        $user = auth()->user();
+        if (!$user->isApprovalFaculty() && $application->user->guide_id !== $user->id) {
+            abort(403, 'Unauthorized access to this application.');
+        }
         return view('faculty.applications.show', compact('application'));
     }
 
@@ -41,14 +45,18 @@ class ApprovalController extends Controller
         ]);
 
         // Send email to student
-        Mail::to($application->user->email)->send(new ApplicationReviewed($application, $approval));
+        if (env('MAIL_NOTIFICATIONS_ENABLED', true)) {
+            Mail::to($application->user->email)->send(new ApplicationReviewed($application, $approval));
+        }
 
         // Send email to higher faculty members
         $higherFacultyMembers = User::whereHas('role', function($query) {
             $query->where('name', 'higher_faculty');
         })->get();
         foreach ($higherFacultyMembers as $higherFaculty) {
-            Mail::to($higherFaculty->email)->send(new ApplicationReviewed($application, $approval));
+            if (env('MAIL_NOTIFICATIONS_ENABLED', true)) {
+                Mail::to($higherFaculty->email)->send(new ApplicationReviewed($application, $approval));
+            }
         }
 
         return redirect()->route('dashboard')
@@ -79,7 +87,9 @@ class ApprovalController extends Controller
         ]);
 
         // Send email to student
-        Mail::to($application->user->email)->send(new ApplicationReviewed($application, $approval));
+        if (env('MAIL_NOTIFICATIONS_ENABLED', true)) {
+            Mail::to($application->user->email)->send(new ApplicationReviewed($application, $approval));
+        }
 
         return redirect()->route('dashboard')
             ->with('success', 'Application rejected.');

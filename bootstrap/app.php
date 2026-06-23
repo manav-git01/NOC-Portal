@@ -11,8 +11,24 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->validateCsrfTokens(except: [
+            'logout',
+            'admin/mentor-mapping/preview',
+            'admin/mentor-mapping/confirm',
+            'admin/students/import',
+        ]);
+
         $middleware->alias([
             'role' => \App\Http\Middleware\CheckRole::class,
+            'admin' => \App\Http\Middleware\AdminMiddleware::class,
+            'faculty_approval' => \App\Http\Middleware\FacultyApprovalMiddleware::class,
+            'higher_faculty_approval' => \App\Http\Middleware\HigherFacultyMiddleware::class,
+            'guide_only' => \App\Http\Middleware\GuideMiddleware::class,
+            'force_password_change' => \App\Http\Middleware\ForcePasswordChange::class,
+        ]);
+
+        $middleware->appendToGroup('web', [
+            \App\Http\Middleware\ForcePasswordChange::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

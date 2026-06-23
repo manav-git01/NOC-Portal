@@ -9,8 +9,9 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
-class NocRequestTest extends RefreshDatabase
+class NocRequestTest extends TestCase
 {
+    use RefreshDatabase;
     protected User $student;
     protected User $faculty;
     protected User $higherFaculty;
@@ -55,6 +56,7 @@ class NocRequestTest extends RefreshDatabase
             'role_id' => $facultyRole->id,
             'phone' => '9876543210',
         ]);
+        $this->faculty->assignPermission('approval_faculty');
 
         $this->higherFaculty = User::create([
             'name' => 'Prof. Higher Faculty',
@@ -63,6 +65,7 @@ class NocRequestTest extends RefreshDatabase
             'role_id' => $higherFacultyRole->id,
             'phone' => '5555555555',
         ]);
+        $this->higherFaculty->assignPermission('noc_authority');
 
         $this->application = InternshipApplication::create([
             'user_id' => $this->student->id,
@@ -222,7 +225,7 @@ class NocRequestTest extends RefreshDatabase
         ]);
 
         $response = $this->actingAs($this->higherFaculty)
-            ->get(route('dashboard'));
+            ->get(route('higher-faculty.noc-dashboard'));
 
         $response->assertSee($this->student->name);
         $response->assertSee($this->application->company_name);

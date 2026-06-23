@@ -29,10 +29,14 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        $adminRole = \App\Models\Role::where('name', 'admin')->first();
+        $adminRoleId = $adminRole ? $adminRole->id : null;
+
         $validationRules = [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'phone' => ['required', 'string', 'max:20'],
+            // TEMPORARY: Admin registration enabled for testing/demo purposes
             'role_id' => ['required', 'exists:roles,id'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ];

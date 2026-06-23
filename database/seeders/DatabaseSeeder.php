@@ -52,5 +52,15 @@ class DatabaseSeeder extends Seeder
             'role_id' => $higherFacultyRole->id,
             'phone' => '5555555555',
         ]);
+
+        // Create an admin user
+        $adminRole = \App\Models\Role::where('name', 'admin')->first();
+        User::create([
+            'name' => 'System Admin',
+            'email' => 'admin@example.ac.in',
+            'password' => bcrypt('password'),
+            'role_id' => $adminRole->id,
+            'phone' => '1234567890',
+        ]);
     }
 }

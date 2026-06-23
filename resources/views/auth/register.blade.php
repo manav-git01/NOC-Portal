@@ -109,6 +109,7 @@
                     <option value="1" {{ old('role_id') == '1' ? 'selected' : '' }}>Student</option>
                     <option value="2" {{ old('role_id') == '2' ? 'selected' : '' }}>Faculty</option>
                     <option value="3" {{ old('role_id') == '3' ? 'selected' : '' }}>Higher Faculty</option>
+                    <option value="4" {{ old('role_id') == '4' ? 'selected' : '' }}>Admin</option>
                 </select>
                 <i class="fas fa-chevron-down absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"></i>
             </div>
@@ -318,6 +319,15 @@
                     emailInput.classList.remove('border-red-500');
                     return true;
                 }
+            }
+
+            if (roleId === '4') {
+                // TEMPORARY: Admin registration enabled for testing/demo purposes
+                emailHint.innerHTML = '<i class="fas fa-check-circle"></i> Valid admin email';
+                emailHint.className = 'text-xs text-green-600 mt-1';
+                emailInput.classList.add('border-green-500');
+                emailInput.classList.remove('border-red-500');
+                return true;
             }
 
             return false;

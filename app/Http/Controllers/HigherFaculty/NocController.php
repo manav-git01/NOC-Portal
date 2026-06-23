@@ -55,7 +55,9 @@ class NocController extends Controller
         $application->refresh();
 
         // Send approval email to student
-        Mail::to($application->user->email)->send(new ApplicationReviewed($application, $approval));
+        if (env('MAIL_NOTIFICATIONS_ENABLED', true)) {
+            Mail::to($application->user->email)->send(new ApplicationReviewed($application, $approval));
+        }
 
         return redirect()->route('dashboard')
             ->with('success', 'Application approved and NOC generated successfully!');
@@ -85,7 +87,9 @@ class NocController extends Controller
         ]);
 
         // Send rejection email to student
-        Mail::to($application->user->email)->send(new ApplicationReviewed($application, $approval));
+        if (env('MAIL_NOTIFICATIONS_ENABLED', true)) {
+            Mail::to($application->user->email)->send(new ApplicationReviewed($application, $approval));
+        }
 
         return redirect()->route('dashboard')
             ->with('success', 'Application rejected.');
@@ -266,7 +270,9 @@ class NocController extends Controller
 
         // Send NOC generated email to student with PDF attachment
         try {
-            Mail::to($application->user->email)->send(new NocGenerated($application));
+            if (env('MAIL_NOTIFICATIONS_ENABLED', true)) {
+                Mail::to($application->user->email)->send(new NocGenerated($application));
+            }
             \Log::info('NOC email sent to: ' . $application->user->email);
         } catch (\Exception $e) {
             // Log the error but don't fail the entire process

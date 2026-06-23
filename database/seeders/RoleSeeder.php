@@ -28,6 +28,11 @@ class RoleSeeder extends Seeder
                 'display_name' => 'Higher-Level Faculty',
                 'description' => 'Higher-level faculty who can give final approval and generate NOC',
             ],
+            [
+                'name' => 'admin',
+                'display_name' => 'Admin',
+                'description' => 'Administrator with access to all data and configurations',
+            ],
         ];
 
         foreach ($roles as $role) {

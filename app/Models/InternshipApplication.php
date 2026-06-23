@@ -50,6 +50,7 @@ class InternshipApplication extends Model
         'faculty_reviewed_at' => 'datetime',
         'higher_faculty_reviewed_at' => 'datetime',
         'additional_documents' => 'array',
+        'noc_requested' => 'boolean',
     ];
 
     /**
@@ -121,7 +122,7 @@ class InternshipApplication extends Model
      */
     public function canRequestNoc()
     {
-        return !$this->noc_requested && $this->status === 'faculty_approved';
+        return !$this->noc_requested && in_array($this->status, ['faculty_approved', 'faculty_rejected']);
     }
 
     /**

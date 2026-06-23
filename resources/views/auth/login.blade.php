@@ -74,17 +74,28 @@
             <x-input-error :messages="$errors->get('password')" class="mt-1" />
         </div>
 
-        <!-- Remember Me -->
-        <div class="flex items-center">
-            <input 
-                id="remember_me" 
-                type="checkbox" 
-                name="remember"
-                class="w-4 h-4 text-blue-600 border-blue-300 rounded focus:ring-blue-500"
-            >
-            <label for="remember_me" class="ml-2 text-sm text-gray-600">
-                Remember me
-            </label>
+        <!-- Remember Me and Forgot Password Row -->
+        <div class="flex items-center justify-between">
+            <div class="flex items-center">
+                <input 
+                    id="remember_me" 
+                    type="checkbox" 
+                    name="remember"
+                    class="w-4 h-4 text-blue-600 border-blue-300 rounded focus:ring-blue-500"
+                >
+                <label for="remember_me" class="ml-2 text-sm text-gray-600">
+                    Remember me
+                </label>
+            </div>
+
+            @if (Route::has('password.request'))
+                <a 
+                    href="{{ route('password.request') }}" 
+                    class="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                >
+                    Forgot Password?
+                </a>
+            @endif
         </div>
 
         <!-- Sign In Button -->
@@ -97,17 +108,6 @@
 
         <!-- Links -->
         <div class="space-y-2 pt-4 border-t border-blue-200">
-            @if (Route::has('password.request'))
-                <div class="text-center">
-                    <a 
-                        href="{{ route('password.request') }}" 
-                        class="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                    >
-                        Forgot password?
-                    </a>
-                </div>
-            @endif
-
             <p class="text-sm text-gray-600 text-center">
                 Don't have an account? 
                 <a 
