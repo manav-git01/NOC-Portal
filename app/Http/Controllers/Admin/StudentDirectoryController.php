@@ -70,6 +70,7 @@ class StudentDirectoryController extends Controller
         // Get filter choices
         $batches = Batch::orderBy('name')->get();
         $faculty = User::whereIn('role_id', [$facultyRole->id, $higherFacultyRole->id])
+            ->whereHas('permissions', fn($q) => $q->where('permission', 'guide'))
             ->orderBy('name')->get();
 
         $departments = User::where('role_id', $studentRole->id)
@@ -127,7 +128,15 @@ class StudentDirectoryController extends Controller
             'department' => 'required|string|max:255',
             'semester' => 'required|integer|min:1|max:10',
             'batch_id' => 'nullable|exists:batches,id',
-            'guide_id' => 'nullable|exists:users,id',
+            'guide_id' => [
+                'nullable',
+                'exists:users,id',
+                function ($attribute, $value, $fail) {
+                    if ($value && !User::find($value)?->hasPermission('guide')) {
+                        $fail('The selected guide must have guide authority.');
+                    }
+                }
+            ],
         ]);
 
         $studentRole = Role::where('name', 'student')->first() ?? (object)['id' => 1];
@@ -180,7 +189,15 @@ class StudentDirectoryController extends Controller
             'department' => 'required|string|max:255',
             'semester' => 'required|integer|min:1|max:10',
             'batch_id' => 'nullable|exists:batches,id',
-            'guide_id' => 'nullable|exists:users,id',
+            'guide_id' => [
+                'nullable',
+                'exists:users,id',
+                function ($attribute, $value, $fail) {
+                    if ($value && !User::find($value)?->hasPermission('guide')) {
+                        $fail('The selected guide must have guide authority.');
+                    }
+                }
+            ],
         ]);
 
         $oldGuideId = $user->guide_id;
@@ -422,7 +439,15 @@ class StudentDirectoryController extends Controller
     public function assignGuide(Request $request, User $user)
     {
         $request->validate([
-            'guide_id' => 'required|exists:users,id',
+            'guide_id' => [
+                'required',
+                'exists:users,id',
+                function ($attribute, $value, $fail) {
+                    if ($value && !User::find($value)?->hasPermission('guide')) {
+                        $fail('The selected guide must have guide authority.');
+                    }
+                }
+            ],
         ]);
 
         $oldGuideId = $user->guide_id;

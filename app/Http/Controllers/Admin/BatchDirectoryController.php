@@ -48,7 +48,9 @@ class BatchDirectoryController extends Controller
         )->count();
 
         // 3. Load all active guides and batches for reassignments
-        $faculty = User::whereIn('role_id', [$facultyRole->id, $higherFacultyRole->id])->orderBy('name')->get();
+        $faculty = User::whereIn('role_id', [$facultyRole->id, $higherFacultyRole->id])
+            ->whereHas('permissions', fn($q) => $q->where('permission', 'guide'))
+            ->orderBy('name')->get();
         $batches = Batch::orderBy('name')->get();
 
         return view('admin.batches.show', compact(
@@ -128,7 +130,15 @@ class BatchDirectoryController extends Controller
     public function updateStudentGuide(Request $request, User $student)
     {
         $request->validate([
-            'guide_id' => 'nullable|exists:users,id',
+            'guide_id' => [
+                'nullable',
+                'exists:users,id',
+                function ($attribute, $value, $fail) {
+                    if ($value && !User::find($value)?->hasPermission('guide')) {
+                        $fail('The selected guide must have guide authority.');
+                    }
+                }
+            ],
         ]);
 
         $oldGuideId = $student->guide_id;
@@ -194,7 +204,15 @@ class BatchDirectoryController extends Controller
     public function updateBatchGuide(Request $request, Batch $batch)
     {
         $request->validate([
-            'guide_id' => 'required|exists:users,id',
+            'guide_id' => [
+                'required',
+                'exists:users,id',
+                function ($attribute, $value, $fail) {
+                    if ($value && !User::find($value)?->hasPermission('guide')) {
+                        $fail('The selected guide must have guide authority.');
+                    }
+                }
+            ],
         ]);
 
         $newGuideId = $request->guide_id;

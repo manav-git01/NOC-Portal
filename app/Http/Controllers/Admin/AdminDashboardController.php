@@ -14,12 +14,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use App\Services\MentorMappingParser;
 
 class AdminDashboardController extends Controller
 {
     /**
-     * Display the admin dashboard with stats, student management, mentor mapping, and batch directory.
+     * Display the admin dashboard with stats, student management, and batch directory.
      */
     public function index(Request $request)
     {
@@ -81,7 +80,7 @@ class AdminDashboardController extends Controller
             )->count();
         }
 
-        // 4. Faculty Directory (read-only, auto-generated from mentor mappings)
+        // 4. Faculty Directory
         $faculty = User::whereIn('role_id', [$facultyRole->id, $higherFacultyRole->id])
             ->with(['permissions'])
             ->withCount('students')
@@ -217,7 +216,15 @@ class AdminDashboardController extends Controller
             'department' => 'required|string|max:255',
             'semester' => 'required|integer|min:1|max:10',
             'batch_id' => 'nullable|exists:batches,id',
-            'guide_id' => 'nullable|exists:users,id',
+            'guide_id' => [
+                'nullable',
+                'exists:users,id',
+                function ($attribute, $value, $fail) {
+                    if ($value && !User::find($value)?->hasPermission('guide')) {
+                        $fail('The selected guide must have guide authority.');
+                    }
+                }
+            ],
             'password' => 'nullable|string|min:6',
         ]);
 
@@ -257,7 +264,15 @@ class AdminDashboardController extends Controller
             'department' => 'required|string|max:255',
             'semester' => 'required|integer|min:1|max:10',
             'batch_id' => 'nullable|exists:batches,id',
-            'guide_id' => 'nullable|exists:users,id',
+            'guide_id' => [
+                'nullable',
+                'exists:users,id',
+                function ($attribute, $value, $fail) {
+                    if ($value && !User::find($value)?->hasPermission('guide')) {
+                        $fail('The selected guide must have guide authority.');
+                    }
+                }
+            ],
         ]);
 
         $oldGuideId = $user->guide_id;
@@ -335,7 +350,7 @@ class AdminDashboardController extends Controller
         // Dependency Check
         // 1. Assigned Guides (e.g. guide_id in users table for students)
         $hasStudents = User::where('guide_id', $user->id)->exists();
-        // 2. Active Mentor Mappings (e.g. guide_id in active GuideAssignment)
+        // 2. Active Guide Assignments (e.g. guide_id in active GuideAssignment)
         $hasActiveAssignments = GuideAssignment::where('guide_id', $user->id)->whereNull('unassigned_at')->exists();
         // 3. Approval / NOC Rights
         $hasSpecialRights = $user->hasPermission('approval_faculty') || $user->hasPermission('noc_authority');
@@ -374,14 +389,14 @@ class AdminDashboardController extends Controller
     {
         // 1. Check ZipArchive availability FIRST (required for XLSX)
         if (!class_exists('ZipArchive')) {
-            Log::error('Mentor Mapping Upload Failed: PHP ZipArchive class is not available. The php_zip extension must be enabled in php.ini for the web server (Apache).');
+            Log::error('Excel Upload Failed: PHP ZipArchive class is not available. The php_zip extension must be enabled in php.ini for the web server (Apache).');
             return redirect()->route('admin.dashboard', ['tab' => $redirectTab])
                 ->with('error', 'Excel processing is currently unavailable because the PHP Zip extension is not enabled. Please contact your server administrator to enable "extension=zip" in the Apache php.ini file, then restart Apache.');
         }
 
         // 2. Check PhpSpreadsheet availability
         if (!class_exists(\PhpOffice\PhpSpreadsheet\IOFactory::class)) {
-            Log::error('Mentor Mapping Upload Failed: PhpSpreadsheet library is not installed or autoloaded.');
+            Log::error('Excel Upload Failed: PhpSpreadsheet library is not installed or autoloaded.');
             return redirect()->route('admin.dashboard', ['tab' => $redirectTab])
                 ->with('error', 'Excel processing library (PhpSpreadsheet) is not available. Please run "composer install" to restore dependencies.');
         }
@@ -541,6 +556,7 @@ class AdminDashboardController extends Controller
             $guideId = null;
             if (!empty($guideVal)) {
                 $guide = User::whereHas('role', fn($q) => $q->whereIn('name', ['faculty', 'higher_faculty']))
+                    ->whereHas('permissions', fn($q) => $q->where('permission', 'guide'))
                     ->where(function($q) use ($guideVal) {
                         $q->where('email', $guideVal)
                           ->orWhere('faculty_id', $guideVal)
@@ -549,7 +565,7 @@ class AdminDashboardController extends Controller
                 if ($guide) {
                     $guideId = $guide->id;
                 } else {
-                    $errors[] = "Row " . ($i + 1) . ": Guide '{$guideVal}' not found in active faculty list.";
+                    $errors[] = "Row " . ($i + 1) . ": Guide '{$guideVal}' not found or lacks guide authority.";
                 }
             }
 
@@ -600,419 +616,6 @@ class AdminDashboardController extends Controller
         return false;
     }
 
-    // ==========================================
-    // MENTOR MAPPING (XLSX Only — Intelligent Multi-Sheet)
-    // ==========================================
-
-    public function previewMentorMapping(Request $request)
-    {
-        // Validate XLSX upload with all pre-flight checks
-        $validationError = $this->validateXlsxUpload($request, 'mentor_mapping');
-        if ($validationError) {
-            return $validationError;
-        }
-
-        $file = $request->file('file');
-        $fileName = $file->getClientOriginalName();
-        $path = $file->getRealPath();
-
-        // Save file in temporary storage
-        $tempPath = $file->storeAs('temp_mentor_mappings', time() . '_' . $fileName);
-
-        // Load the full spreadsheet (all sheets)
-        [$spreadsheet, $loadError] = $this->loadSpreadsheet($path, 'mentor_mapping');
-        if ($loadError) {
-            return $loadError;
-        }
-
-        // Use the intelligent parser to process ALL sheets
-        try {
-            $parser = new MentorMappingParser();
-            $result = $parser->parseWorkbook($spreadsheet);
-        } catch (\Exception $e) {
-            Log::error('Mentor Mapping Parse Error: ' . $e->getMessage());
-            return redirect()->route('admin.dashboard', ['tab' => 'mentor_mapping'])
-                ->with('error', 'An error occurred while parsing the workbook: ' . $e->getMessage());
-        }
-
-        $previewRows = $result['preview_rows'];
-        $warnings = $result['warnings'];
-        $previewStats = $result['stats'];
-        $sheetMappings = $result['sheet_mappings'];
-
-        if (empty($previewRows)) {
-            // Build a helpful error message showing what we detected
-            $mappingInfo = '';
-            if (!empty($sheetMappings)) {
-                $mappingInfo = ' Detected column mappings: ';
-                foreach ($sheetMappings as $sm) {
-                    $cols = array_map(fn($c) => '"' . $c['original'] . '" → ' . $c['mapped_to'], $sm['mapped_columns']);
-                    $mappingInfo .= '[Sheet "' . $sm['sheet_name'] . '": ' . implode(', ', $cols) . '] ';
-                }
-            }
-            return redirect()->route('admin.dashboard', ['tab' => 'mentor_mapping'])
-                ->with('error', 'No valid student data rows were found across any sheet in the uploaded file.' . $mappingInfo
-                    . ' Warnings: ' . implode('; ', array_slice($warnings, 0, 5)));
-        }
-
-        // Calculate differences
-        $studentRole = Role::where('name', 'student')->first();
-        $currentStudents = User::where('role_id', $studentRole->id)
-            ->with(['batch', 'guide'])
-            ->get()
-            ->keyBy('enrollment_number');
-
-        $addedStudents = [];
-        $removedStudents = [];
-        $guideChanges = [];
-        $batchChanges = [];
-        $previewEnrollments = [];
-
-        foreach ($previewRows as $row) {
-            $enrollment = $row['enrollment'];
-            $previewEnrollments[] = $enrollment;
-            
-            $mentorEmail = $row['mentor_email'] ?? '';
-            $mentorName = $row['mentor_name'] ?? '';
-            $batchName = $row['batch'] ?? '';
-
-            if (!$currentStudents->has($enrollment)) {
-                $addedStudents[] = [
-                    'enrollment' => $enrollment,
-                    'name' => $row['student_name'] ?? ('Student ' . $enrollment),
-                    'batch' => $batchName,
-                    'mentor' => $mentorName,
-                ];
-            } else {
-                $student = $currentStudents->get($enrollment);
-                $currentGuideEmail = $student->guide?->email ?? '';
-                $currentGuideName = $student->guide?->name ?? '';
-
-                $guideChanged = false;
-                if (!empty($mentorEmail)) {
-                    if (strtolower($currentGuideEmail) !== strtolower($mentorEmail)) {
-                        $guideChanged = true;
-                    }
-                } elseif (!empty($mentorName)) {
-                    if ($currentGuideName !== $mentorName) {
-                        $guideChanged = true;
-                    }
-                }
-
-                if ($guideChanged) {
-                    $guideChanges[] = [
-                        'enrollment' => $enrollment,
-                        'name' => $student->name,
-                        'old_guide' => $currentGuideName ?: 'None',
-                        'new_guide' => $mentorName ?: 'None',
-                    ];
-                }
-
-                $currentBatchName = $student->batch?->name ?? '';
-                if (!empty($batchName) && strtolower($currentBatchName) !== strtolower($batchName)) {
-                    $batchChanges[] = [
-                        'enrollment' => $enrollment,
-                        'name' => $student->name,
-                        'old_batch' => $currentBatchName ?: 'None',
-                        'new_batch' => $batchName,
-                    ];
-                }
-            }
-        }
-
-        $previewEnrollmentsLower = array_map('strtolower', $previewEnrollments);
-        foreach ($currentStudents as $enrollment => $student) {
-            if (!in_array(strtolower($enrollment), $previewEnrollmentsLower)) {
-                $removedStudents[] = [
-                    'enrollment' => $enrollment,
-                    'name' => $student->name,
-                    'batch' => $student->batch?->name ?? 'N/A',
-                    'guide' => $student->guide?->name ?? 'N/A',
-                ];
-            }
-        }
-
-        $comparison = [
-            'added' => $addedStudents,
-            'removed' => $removedStudents,
-            'guide_changes' => $guideChanges,
-            'batch_changes' => $batchChanges,
-        ];
-
-        return redirect()->route('admin.dashboard', ['tab' => 'mentor_mapping'])
-            ->with([
-                'mentor_mapping_preview' => $previewRows,
-                'mentor_mapping_warnings' => $warnings,
-                'mentor_mapping_json' => json_encode($previewRows),
-                'mentor_mapping_stats' => $previewStats,
-                'mentor_mapping_sheet_mappings' => $sheetMappings,
-                'mentor_mapping_file_name' => $fileName,
-                'mentor_mapping_file_path' => $tempPath,
-                'mentor_mapping_comparison' => $comparison,
-            ]);
-    }
-
-    public function confirmMentorMapping(Request $request)
-    {
-        $request->validate([
-            'mappings_json' => 'required|string',
-            'file_name' => 'nullable|string',
-            'file_path' => 'nullable|string',
-        ]);
-
-        $previewRows = json_decode($request->mappings_json, true);
-        if (!$previewRows || !is_array($previewRows)) {
-            return redirect()->route('admin.dashboard', ['tab' => 'mentor_mapping'])
-                ->with('error', 'No valid mapping data provided to import.');
-        }
-
-        $fileName = $request->input('file_name', 'mentor_mapping.xlsx');
-        $tempPath = $request->input('file_path');
-
-        $successCount = 0;
-        $warnings = [];
-        $createdStudentCount = 0;
-        $mappingsCreatedCount = 0;
-        $mappingsUpdatedCount = 0;
-        $createdBatchesCount = 0;
-        $createdFacultyCount = 0;
-        $totalRows = count($previewRows);
-
-        $studentRole = Role::where('name', 'student')->first() ?? (object)['id' => 1];
-
-        DB::beginTransaction();
-
-        try {
-            // Move temporary file to archive folder
-            $finalPath = null;
-            if ($tempPath && \Illuminate\Support\Facades\Storage::exists($tempPath)) {
-                $finalPath = 'mentor_mapping_archives/' . basename($tempPath);
-                \Illuminate\Support\Facades\Storage::move($tempPath, $finalPath);
-            }
-
-            // Snapshot previous state before applying changes
-            \App\Models\MentorMappingArchive::archiveCurrentState(
-                auth()->id(),
-                $fileName,
-                "Auto-archived snapshot before importing " . $fileName,
-                $finalPath
-            );
-
-            foreach ($previewRows as $row) {
-                $enrollment = $row['enrollment'];
-                $mentorName = $row['mentor_name'] ?? 'N/A';
-                $mentorEmail = $row['mentor_email'] ?? 'N/A';
-                $batchName = $row['batch'] ?? 'N/A';
-
-                // Check mapping type (create vs update)
-                $studentExisted = User::where('enrollment_number', $enrollment)->exists();
-                $hadPreviousGuide = false;
-                if ($studentExisted) {
-                    $studentObj = User::where('enrollment_number', $enrollment)->first();
-                    if ($studentObj && $studentObj->guide_id !== null) {
-                        $hadPreviousGuide = true;
-                    }
-                }
-
-                if (!$studentExisted || !$hadPreviousGuide) {
-                    $mappingsCreatedCount++;
-                } else {
-                    $mappingsUpdatedCount++;
-                }
-
-                // 1. Get student or create inactive directory student record
-                $student = User::where('enrollment_number', $enrollment)->first();
-                if (!$student) {
-                    $studentEmail = strtolower($enrollment) . '@charusat.edu.in';
-                    
-                    // Fallback check by email to avoid duplicates
-                    $student = User::where('email', $studentEmail)->first();
-                    if (!$student) {
-                        $studentName = !empty($row['student_name']) && $row['student_name'] !== 'N/A' 
-                            ? $row['student_name'] 
-                            : 'Student ' . $enrollment;
-
-                        $student = User::create([
-                            'name' => $studentName,
-                            'email' => $studentEmail,
-                            'enrollment_number' => $enrollment,
-                            'password' => Hash::make(\Illuminate\Support\Str::random(16)),
-                            'role_id' => $studentRole->id,
-                            'department' => 'IT',
-                            'semester' => '7', // Default semester
-                            'status' => 'Active',
-                            'account_status' => 'inactive', // inactive/directory-only record
-                            'phone' => 'N/A',
-                        ]);
-                        $createdStudentCount++;
-                    } else {
-                        $student->update(['enrollment_number' => $enrollment]);
-                    }
-                }
-
-                // 2. Batch handling
-                $batchId = $student->batch_id;
-                if (!empty($batchName) && $batchName !== 'N/A') {
-                    $batch = Batch::where('name', $batchName)->first();
-                    if (!$batch) {
-                        $batch = Batch::create(['name' => $batchName]);
-                        $createdBatchesCount++;
-                    }
-                    $batchId = $batch->id;
-                }
-
-                // 3. Faculty handling (Auto-create guide if not found)
-                $newGuideId = null;
-                if (!empty($mentorEmail) && $mentorEmail !== 'N/A') {
-                    $guide = User::where('email', $mentorEmail)->first();
-                    if ($guide) {
-                        $newGuideId = $guide->id;
-                    } else {
-                        // Create Faculty Guide
-                        $facultyRole = Role::where('name', 'faculty')->first() ?? (object)['id' => 2];
-                        $guide = User::create([
-                            'name' => $mentorName,
-                            'email' => $mentorEmail,
-                            'password' => Hash::make('password123'),
-                            'role_id' => $facultyRole->id,
-                            'phone' => 'N/A',
-                            'account_status' => 'active',
-                        ]);
-                        $newGuideId = $guide->id;
-                        $createdFacultyCount++;
-                    }
-                }
-
-                // 4. Update student mapping
-                $oldGuideId = $student->guide_id;
-                $newGuideId = $newGuideId ?: null;
-
-                $student->update([
-                    'guide_id' => $newGuideId,
-                    'batch_id' => $batchId,
-                    'is_locked' => $newGuideId ? true : $student->is_locked,
-                ]);
-
-                // Terminate existing guide assignment if guide changed
-                if ($oldGuideId != $newGuideId) {
-                    GuideAssignment::where('student_id', $student->id)
-                        ->whereNull('unassigned_at')
-                        ->update(['unassigned_at' => now()]);
-
-                    if ($newGuideId) {
-                        GuideAssignment::create([
-                            'student_id' => $student->id,
-                            'guide_id' => $newGuideId,
-                            'assigned_by' => auth()->id(),
-                            'assigned_at' => now(),
-                        ]);
-                    }
-
-                    // Create guide history entry
-                    \App\Models\GuideHistory::create([
-                        'student_id' => $student->id,
-                        'old_guide_id' => $oldGuideId,
-                        'new_guide_id' => $newGuideId,
-                        'changed_by' => auth()->id(),
-                    ]);
-                }
-
-                $successCount++;
-            }
-
-            // Update batches' guide_id based on new student mappings
-            $allBatches = Batch::all();
-            foreach ($allBatches as $b) {
-                $mostCommonGuideId = User::where('role_id', $studentRole->id)
-                    ->where('batch_id', $b->id)
-                    ->whereNotNull('guide_id')
-                    ->select('guide_id', DB::raw('count(*) as total'))
-                    ->groupBy('guide_id')
-                    ->orderByDesc('total')
-                    ->first()?->guide_id;
-
-                if ($mostCommonGuideId) {
-                    $b->update(['guide_id' => $mostCommonGuideId]);
-                }
-            }
-
-            DB::commit();
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return redirect()->route('admin.dashboard', ['tab' => 'mentor_mapping'])
-                ->with('error', 'Import failed due to database error: ' . $e->getMessage());
-        }
-
-        $report = [
-            'type' => 'Mentor Mapping',
-            'success' => $successCount, // Mapped Students
-            'created_students' => $createdStudentCount,
-            'created_faculty' => $createdFacultyCount,
-            'updated_faculty' => 0,
-            'created_batches' => $createdBatchesCount,
-            'mappings_created' => $mappingsCreatedCount,
-            'mappings_updated' => $mappingsUpdatedCount,
-            'total_rows' => $totalRows, // Imported Students
-            'failed' => count($warnings),
-            'upload_date' => now()->format('M d, Y h:i A'),
-            'duplicates' => 0,
-            'errors' => $warnings,
-        ];
-
-        // Audit Log using log helper
-        AuditLog::log(
-            "Imported Mentor Mapping sheet: {$fileName}",
-            "Mapped Students: {$successCount}",
-            "mentor_mapping_import",
-            ['mapped_count' => $successCount, 'warnings' => $warnings]
-        );
-
-        return redirect()->route('admin.dashboard', ['tab' => 'mentor_mapping'])
-            ->with([
-                'success' => "Mentor mapping imported successfully! Mapped: {$successCount} students.",
-                'import_report' => $report,
-            ]);
-    }
-
-    public function downloadCreatedAccountsReport()
-    {
-        $accounts = session('mentor_mapping_created_accounts', []);
-        
-        if (empty($accounts)) {
-            return redirect()->back()->with('error', 'No created accounts report available.');
-        }
-        
-        $headers = [
-            "Content-type"        => "text/csv",
-            "Content-Disposition" => "attachment; filename=created_accounts_report_" . date('Ymd_His') . ".csv",
-            "Pragma"              => "no-cache",
-            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
-            "Expires"             => "0"
-        ];
-        
-        $columns = ['Account Type', 'Name', 'Enrollment / Faculty ID', 'Generated Email', 'Default Password Pattern', 'Assigned Mentor Name', 'Assigned Mentor Email'];
-        
-        $callback = function() use ($accounts, $columns) {
-            $file = fopen('php://output', 'w');
-            fputcsv($file, $columns);
-            
-            foreach ($accounts as $row) {
-                fputcsv($file, [
-                    $row['type'],
-                    $row['name'],
-                    $row['identifier'],
-                    $row['email'],
-                    $row['password_pattern'],
-                    $row['mentor_name'],
-                    $row['mentor_email']
-                ]);
-            }
-            
-            fclose($file);
-        };
-        
-        return response()->stream($callback, 200, $headers);
-    }
 
     /**
      * Update faculty authority type and automatically manage their role.
@@ -1056,7 +659,15 @@ class AdminDashboardController extends Controller
     public function reassignBatchGuide(Request $request, Batch $batch)
     {
         $request->validate([
-            'guide_id' => 'required|exists:users,id',
+            'guide_id' => [
+                'required',
+                'exists:users,id',
+                function ($attribute, $value, $fail) {
+                    if ($value && !User::find($value)?->hasPermission('guide')) {
+                        $fail('The selected guide must have guide authority.');
+                    }
+                }
+            ],
         ]);
 
         $newGuideId = $request->guide_id;

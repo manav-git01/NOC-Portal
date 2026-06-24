@@ -197,9 +197,9 @@ class DeletionConfirmationTest extends TestCase
     }
 
     /**
-     * Test faculty deletion: Blocked if has active mentor mapping (GuideAssignment).
+     * Test faculty deletion: Blocked if has active guide assignment (GuideAssignment).
      */
-    public function test_faculty_deletion_blocked_if_active_mentor_mapping(): void
+    public function test_faculty_deletion_blocked_if_active_guide_assignment(): void
     {
         $faculty = User::create([
             'name' => 'Bimal Patel',

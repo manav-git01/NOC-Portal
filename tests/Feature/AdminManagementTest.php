@@ -81,6 +81,7 @@ class AdminManagementTest extends TestCase
             'role_id' => $this->facultyRole->id,
             'phone' => '1122334455',
         ]);
+        $guide->assignPermission('guide');
 
         // 1. Create Student
         $response = $this->actingAs($this->admin)->post(route('admin.students.store'), [
@@ -119,6 +120,7 @@ class AdminManagementTest extends TestCase
             'role_id' => $this->facultyRole->id,
             'phone' => '5544332211',
         ]);
+        $newGuide->assignPermission('guide');
 
         $response = $this->actingAs($this->admin)->put(route('admin.students.update', $student->id), [
             'enrollment_number' => '21IT001_MOD',
@@ -171,6 +173,7 @@ class AdminManagementTest extends TestCase
             'role_id' => $this->facultyRole->id,
             'phone' => '123'
         ]);
+        $guide->assignPermission('guide');
 
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
@@ -236,199 +239,6 @@ class AdminManagementTest extends TestCase
         ]);
     }
 
-    /**
-     * Test mentor mapping imports with merged cells, carry forward, and multiple worksheets.
-     */
-    public function test_import_mentor_mappings_with_merged_cells_and_carry_forward(): void
-    {
-        // 1. Create pre-existing students in DB
-        $students = [
-            ['23IT001', 'Rahul Patel', 'rahul@example.edu.in'],
-            ['23IT002', 'Amit Shah', 'amit@example.edu.in'],
-            ['23IT003', 'Karan Patel', 'karan@example.edu.in'],
-            ['23IT004', 'Priya Shah', 'priya@example.edu.in'],
-            ['23CS001', 'CS Student 1', 'cs1@example.edu.in'],
-            ['23CS002', 'CS Student 2', 'cs2@example.edu.in'],
-        ];
-
-        foreach ($students as $s) {
-            User::create([
-                'enrollment_number' => $s[0],
-                'name' => $s[1],
-                'email' => $s[2],
-                'department' => 'IT',
-                'semester' => 6,
-                'role_id' => $this->studentRole->id,
-                'password' => bcrypt('password'),
-                'phone' => '123456789',
-            ]);
-        }
-
-        // 2. Generate multi-sheet workbook using PhpSpreadsheet
-        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
-        
-        // --- Sheet 1: IT_2023 (tests merged cells, decorative headings) ---
-        $sheet1 = $spreadsheet->getActiveSheet();
-        $sheet1->setTitle('IT_2023');
-
-        // Decorative headers
-        $sheet1->setCellValue('A1', 'Faculty of Technology and Engineering');
-        $sheet1->setCellValue('A2', 'Department of IT');
-        $sheet1->setCellValue('A3', 'Semester 6');
-        $sheet1->setCellValue('A4', '-------------------------------');
-
-        // Real Headers
-        $sheet1->setCellValue('A5', 'Student ID');
-        $sheet1->setCellValue('B5', 'Student Name');
-        $sheet1->setCellValue('C5', 'Mentor Faculty Name');
-
-        // Data (Row 6 Bimal Patel, Rows 7-9 merged)
-        $sheet1->setCellValue('A6', '23IT001');
-        $sheet1->setCellValue('B6', 'Rahul Patel');
-        $sheet1->setCellValue('C6', 'Dr. Bimal Patel');
-
-        $sheet1->setCellValue('A7', '23IT002');
-        $sheet1->setCellValue('B7', 'Amit Shah');
-
-        $sheet1->setCellValue('A8', '23IT003');
-        $sheet1->setCellValue('B8', 'Karan Patel');
-
-        $sheet1->setCellValue('A9', '23IT004');
-        $sheet1->setCellValue('B9', 'Priya Shah');
-
-        // Merge cells vertically for the mentor
-        $sheet1->mergeCells('C6:C9');
-
-        // --- Sheet 2: CS_2023 (tests carry forward, blank rows) ---
-        $sheet2 = $spreadsheet->createSheet();
-        $sheet2->setTitle('CS_2023');
-
-        // Real Headers
-        $sheet2->setCellValue('A1', 'Enrollment Number');
-        $sheet2->setCellValue('B1', 'Name');
-        $sheet2->setCellValue('C1', 'Guide Name');
-
-        // Data (Row 2 Vipul Patel, Row 3 empty mentor to carry forward)
-        $sheet2->setCellValue('A2', '23CS001');
-        $sheet2->setCellValue('B2', 'CS Student 1');
-        $sheet2->setCellValue('C2', 'Prof. Vipul Patel');
-
-        $sheet2->setCellValue('A3', '23CS002');
-        $sheet2->setCellValue('B3', 'CS Student 2');
-        // A3:C3 has empty mentor to test carry-forward
-
-        // Decorative / Blank row at the end
-        $sheet2->setCellValue('A4', '');
-        $sheet2->setCellValue('B4', '');
-        $sheet2->setCellValue('C4', '');
-
-        // 3. Save to temporary XLSX file
-        $tempPath = tempnam(sys_get_temp_dir(), 'xlsx');
-        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
-        $writer->save($tempPath);
-
-        $file = new \Illuminate\Http\UploadedFile(
-            $tempPath,
-            'mentor_mappings.xlsx',
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            null,
-            true
-        );
-
-        // 4. Test Preview Mapping Route
-        $response = $this->actingAs($this->admin)->post(route('admin.mentor-mapping.preview'), [
-            'file' => $file
-        ]);
-
-        if (file_exists($tempPath)) {
-            @unlink($tempPath);
-        }
-
-        $response->assertRedirect(route('admin.dashboard', ['tab' => 'mentor_mapping']));
-        $response->assertSessionHas('mentor_mapping_preview');
-        $response->assertSessionHas('mentor_mapping_json');
-
-        $previewRows = session('mentor_mapping_preview');
-        $this->assertCount(6, $previewRows); // 4 from IT, 2 from CS (blank row ignored)
-
-        // Verify propagation in preview:
-        // Rahul Patel, Amit Shah, Karan Patel, Priya Shah should all be mapped to Dr. Bimal Patel
-        foreach (range(0, 3) as $idx) {
-            $this->assertEquals('Dr. Bimal Patel', $previewRows[$idx]['mentor_name']);
-            $this->assertEquals('bimalpatel.it@charusat.ac.in', $previewRows[$idx]['mentor_email']);
-            $this->assertEquals('IT_2023', $previewRows[$idx]['batch']);
-        }
-
-        // CS Student 1 and CS Student 2 should be mapped to Prof. Vipul Patel
-        foreach (range(4, 5) as $idx) {
-            $this->assertEquals('Prof. Vipul Patel', $previewRows[$idx]['mentor_name']);
-            $this->assertEquals('vipulpatel.it@charusat.ac.in', $previewRows[$idx]['mentor_email']);
-            $this->assertEquals('CS_2023', $previewRows[$idx]['batch']);
-        }
-
-        // 5. Test Confirm Mapping Route
-        $confirmResponse = $this->actingAs($this->admin)->post(route('admin.mentor-mapping.confirm'), [
-            'mappings_json' => session('mentor_mapping_json')
-        ]);
-
-        $confirmResponse->assertRedirect(route('admin.dashboard', ['tab' => 'mentor_mapping']));
-        $confirmResponse->assertSessionHas('import_report');
-        
-        $report = session('import_report');
-        $this->assertEquals(6, $report['success']); // 6 mapped students
-        $this->assertEquals(2, $report['created_faculty']); // Bimal Patel + Vipul Patel
-        $this->assertEquals(2, $report['created_batches']); // IT_2023 + CS_2023
-
-        // 6. Verify Database State
-        // Check Batches
-        $this->assertDatabaseHas('batches', ['name' => 'IT_2023']);
-        $this->assertDatabaseHas('batches', ['name' => 'CS_2023']);
-
-        $batchIt = Batch::where('name', 'IT_2023')->first();
-        $batchCs = Batch::where('name', 'CS_2023')->first();
-
-        // Check Faculty (Guides)
-        $this->assertDatabaseHas('users', [
-            'name' => 'Dr. Bimal Patel',
-            'email' => 'bimalpatel.it@charusat.ac.in',
-            'role_id' => $this->facultyRole->id,
-        ]);
-        $this->assertDatabaseHas('users', [
-            'name' => 'Prof. Vipul Patel',
-            'email' => 'vipulpatel.it@charusat.ac.in',
-            'role_id' => $this->facultyRole->id,
-        ]);
-
-        $guideBimal = User::where('email', 'bimalpatel.it@charusat.ac.in')->first();
-        $guideVipul = User::where('email', 'vipulpatel.it@charusat.ac.in')->first();
-
-        // Check Students are updated with guides and batches
-        foreach (['23IT001', '23IT002', '23IT003', '23IT004'] as $enroll) {
-            $this->assertDatabaseHas('users', [
-                'enrollment_number' => $enroll,
-                'batch_id' => $batchIt->id,
-                'guide_id' => $guideBimal->id,
-            ]);
-        }
-
-        foreach (['23CS001', '23CS002'] as $enroll) {
-            $this->assertDatabaseHas('users', [
-                'enrollment_number' => $enroll,
-                'batch_id' => $batchCs->id,
-                'guide_id' => $guideVipul->id,
-            ]);
-        }
-
-        // Verify GuideAssignment logs
-        foreach (['23IT001', '23IT002', '23IT003', '23IT004'] as $enroll) {
-            $student = User::where('enrollment_number', $enroll)->first();
-            $this->assertDatabaseHas('guide_assignments', [
-                'student_id' => $student->id,
-                'guide_id' => $guideBimal->id,
-                'unassigned_at' => null,
-            ]);
-        }
-    }
 
 
     /**
@@ -506,6 +316,7 @@ class AdminManagementTest extends TestCase
             'role_id' => $this->facultyRole->id,
             'phone' => '1111111111',
         ]);
+        $guide1->assignPermission('guide');
 
         $guide2 = User::create([
             'name' => 'Guide Two',
@@ -514,6 +325,7 @@ class AdminManagementTest extends TestCase
             'role_id' => $this->facultyRole->id,
             'phone' => '2222222222',
         ]);
+        $guide2->assignPermission('guide');
 
         $student = User::create([
             'enrollment_number' => '21IT201',

@@ -38,6 +38,7 @@ class GuideAssignmentController extends Controller
             ->get();
 
         $guides = User::whereIn('role_id', [$facultyRole->id, $higherFacultyRole->id])
+            ->whereHas('permissions', fn($q) => $q->where('permission', 'guide'))
             ->orderBy('name')
             ->get();
 
@@ -81,7 +82,15 @@ class GuideAssignmentController extends Controller
     {
         $request->validate([
             'student_id' => 'required|exists:users,id',
-            'guide_id' => 'required|exists:users,id',
+            'guide_id' => [
+                'required',
+                'exists:users,id',
+                function ($attribute, $value, $fail) {
+                    if ($value && !User::find($value)?->hasPermission('guide')) {
+                        $fail('The selected guide must have guide authority.');
+                    }
+                }
+            ],
             'batch_id' => 'nullable|exists:batches,id',
         ]);
 
@@ -173,7 +182,15 @@ class GuideAssignmentController extends Controller
         $request->validate([
             'student_ids' => 'required|array',
             'student_ids.*' => 'exists:users,id',
-            'guide_id' => 'required|exists:users,id',
+            'guide_id' => [
+                'required',
+                'exists:users,id',
+                function ($attribute, $value, $fail) {
+                    if ($value && !User::find($value)?->hasPermission('guide')) {
+                        $fail('The selected guide must have guide authority.');
+                    }
+                }
+            ],
             'batch_id' => 'nullable|exists:batches,id',
         ]);
 

@@ -13,8 +13,6 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->validateCsrfTokens(except: [
             'logout',
-            'admin/mentor-mapping/preview',
-            'admin/mentor-mapping/confirm',
             'admin/students/import',
         ]);
 

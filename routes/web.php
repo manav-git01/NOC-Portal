@@ -7,7 +7,6 @@ use App\Http\Controllers\Faculty\ApprovalController;
 use App\Http\Controllers\HigherFaculty\NocController;
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\BatchDirectoryController;
-use App\Http\Controllers\Admin\MentorMappingArchiveController;
 use App\Http\Controllers\Admin\StudentDirectoryController;
 use App\Http\Controllers\Admin\FacultyDirectoryController;
 use App\Http\Controllers\Admin\GuideAssignmentController;
@@ -151,11 +150,6 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Faculty CRUD & Delete
     Route::delete('/faculty/{user}', [AdminDashboardController::class, 'destroyFaculty'])->name('faculty.destroy');
 
-    // Mentor Mapping Import & Preview
-    Route::post('/mentor-mapping/preview', [AdminDashboardController::class, 'previewMentorMapping'])->name('mentor-mapping.preview');
-    Route::post('/mentor-mapping/confirm', [AdminDashboardController::class, 'confirmMentorMapping'])->name('mentor-mapping.confirm');
-    Route::get('/mentor-mapping/download-report', [AdminDashboardController::class, 'downloadCreatedAccountsReport'])->name('mentor-mapping.download-report');
-
     // Faculty Authority Management
     Route::put('/faculty/{user}/authority', [AdminDashboardController::class, 'updateAuthority'])->name('faculty.update-authority');
     
@@ -168,13 +162,6 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/students/{student}/change-guide', [BatchDirectoryController::class, 'updateStudentGuide'])->name('students.change-guide');
     Route::post('/batches/{batch}/change-guide', [BatchDirectoryController::class, 'updateBatchGuide'])->name('batches.change-guide');
     Route::post('/batches/bulk-transfer', [BatchDirectoryController::class, 'bulkTransfer'])->name('batches.bulk-transfer');
-
-    // Mentor Mapping Archive management
-    Route::get('/mentor-mapping/archives', [MentorMappingArchiveController::class, 'index'])->name('mentor-mapping.archives');
-    Route::get('/mentor-mapping/archives/{archive}', [MentorMappingArchiveController::class, 'show'])->name('mentor-mapping.archives.show');
-    Route::post('/mentor-mapping/archives/{archive}/restore', [MentorMappingArchiveController::class, 'restore'])->name('mentor-mapping.archives.restore');
-    Route::get('/mentor-mapping/archives/{archive}/download', [MentorMappingArchiveController::class, 'downloadReport'])->name('mentor-mapping.archives.download');
-    Route::get('/mentor-mapping/archives/{archive}/compare/{other}', [MentorMappingArchiveController::class, 'compare'])->name('mentor-mapping.archives.compare');
 
     // System Diagnostics (AJAX)
     Route::get('/system-diagnostics', [AdminDashboardController::class, 'systemDiagnostics'])->name('system-diagnostics');

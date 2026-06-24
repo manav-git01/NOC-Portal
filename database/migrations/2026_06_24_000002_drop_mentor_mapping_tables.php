@@ -11,6 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
+        Schema::dropIfExists('archived_mentor_mappings');
+        Schema::dropIfExists('mentor_mapping_archives');
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
         Schema::create('mentor_mapping_archives', function (Blueprint $table) {
             $table->id();
             $table->timestamp('import_date');
@@ -36,14 +45,5 @@ return new class extends Migration
             $table->string('guide_name')->nullable();
             $table->timestamps();
         });
-    }
-
-    /**
-     * Reverse the migrations.
-     */
-    public function down(): void
-    {
-        Schema::dropIfExists('archived_mentor_mappings');
-        Schema::dropIfExists('mentor_mapping_archives');
     }
 };

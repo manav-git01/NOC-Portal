@@ -288,12 +288,6 @@
                 <span>Authority Management</span>
             </a>
 
-            <a href="{{ route('admin.dashboard', ['tab' => 'mentor_mapping']) }}"
-               class="flex items-center space-x-2 px-4 py-2.5 rounded-lg text-xs font-bold transition duration-150 {{ $activeTab === 'mentor_mapping' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}">
-                <i class="fas fa-map-marked-alt text-sm"></i>
-                <span>Mentor Mapping</span>
-            </a>
-
             <a href="{{ route('admin.account-management.index') }}"
                class="flex items-center space-x-2 px-4 py-2.5 rounded-lg text-xs font-bold transition duration-150 {{ $activeTab === 'account_management' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}">
                 <i class="fas fa-user-shield text-sm"></i>
@@ -796,55 +790,6 @@
                             @endforeach
                         </tbody>
                     </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- TAB 7: MENTOR MAPPING ARCHIVE -->
-        <div x-show="activeTab === 'mentor_mapping'" x-transition class="space-y-6">
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <div class="flex justify-between items-center border-b border-gray-100 pb-4 mb-4">
-                    <div>
-                        <h3 class="text-lg font-bold text-gray-900">Mentor Mapping Excel Import</h3>
-                        <p class="text-sm text-gray-500">Upload a spreadsheet containing student-guide mapping configurations to update the Student Directory.</p>
-                    </div>
-                    <a href="{{ route('admin.mentor-mapping.archives') }}" class="inline-flex items-center px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold transition shadow-xs">
-                        <i class="fas fa-archive mr-1.5"></i> View Archives Log
-                    </a>
-                </div>
-
-                <!-- Excel file upload form -->
-                <form action="{{ route('admin.mentor-mapping.preview') }}" method="POST" enctype="multipart/form-data" class="space-y-4">
-                    @csrf
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Upload Mapping Spreadsheet (.xlsx)</label>
-                        <input type="file" name="file" required accept=".xlsx" class="w-full max-w-lg border border-gray-300 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-indigo-500 bg-gray-50">
-                    </div>
-                    <button type="submit" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg transition shadow-sm">
-                        Parse Mapping Preview
-                    </button>
-                </form>
-
-                <!-- Comparison form if comparison active -->
-                <div class="mt-8 border-t border-gray-200 pt-6">
-                    <h4 class="text-sm font-bold text-gray-900 uppercase tracking-wider mb-3">Compare Two Historical Archive Snapshots</h4>
-                    <form action="" method="GET" onsubmit="event.preventDefault(); window.location.href = '{{ url('admin/mentor-mapping/archives') }}/' + this.archive_a.value + '/compare/' + this.archive_b.value;" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <select name="archive_a" required class="w-full border border-gray-300 rounded-lg py-2 px-3 text-xs outline-none focus:ring-2 focus:ring-indigo-500">
-                            <option value="">-- Choose Base Snapshot --</option>
-                            @foreach($archives ?? [] as $arch)
-                                <option value="{{ $arch->id }}">{{ $arch->file_name }} ({{ $arch->import_date->format('M d, Y') }})</option>
-                            @endforeach
-                        </select>
-                        <select name="archive_b" required class="w-full border border-gray-300 rounded-lg py-2 px-3 text-xs outline-none focus:ring-2 focus:ring-indigo-500">
-                            <option value="">-- Choose Target Snapshot --</option>
-                            @foreach($archives ?? [] as $arch)
-                                <option value="{{ $arch->id }}">{{ $arch->file_name }} ({{ $arch->import_date->format('M d, Y') }})</option>
-                            @endforeach
-                        </select>
-                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg py-2 transition shadow-sm">
-                            Compare Snapshots
-                        </button>
-                    </form>
                 </div>
             </div>
         </div>

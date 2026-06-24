@@ -110,14 +110,14 @@ class RegisteredUserController extends Controller
             
             $user = $matchedUser;
         } else {
-            // No match found -> create new pending user
+            // No match found -> create new pending user (except admin who auto-activates)
             $userData = [
                 'name' => $request->name,
                 'email' => $request->email,
                 'phone' => $request->phone,
                 'role_id' => $request->role_id,
                 'password' => Hash::make($request->password),
-                'account_status' => 'pending',
+                'account_status' => $request->role_id == $adminRoleId ? 'active' : 'pending',
                 'status' => 'Active',
             ];
 

@@ -21,6 +21,19 @@ class RegistrationTest extends TestCase
         $this->seed(\Database\Seeders\RoleSeeder::class);
         $studentRole = \App\Models\Role::where('name', 'student')->first();
 
+        // Seed directory record first to match during registration
+        \App\Models\User::create([
+            'name' => 'Directory Record',
+            'email' => 'test@example.edu.in',
+            'phone' => '0000000000',
+            'enrollment_number' => '21IT001',
+            'role_id' => $studentRole->id,
+            'department' => 'IT',
+            'semester' => 6,
+            'password' => bcrypt('temp_pwd'),
+            'account_status' => 'inactive',
+        ]);
+
         $response = $this->post('/register', [
             'name' => 'Test User',
             'email' => 'test@example.edu.in',
