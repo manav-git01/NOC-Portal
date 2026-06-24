@@ -201,6 +201,7 @@
 
         <!-- General Stats cards visible contextually -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <!-- Students -->
             <div class="bg-gradient-to-br from-sky-400 to-sky-600 rounded-2xl shadow-md p-5 text-white hover:scale-[1.02] transition-transform duration-200">
                 <div class="flex items-start justify-between">
                     <div>
@@ -213,6 +214,7 @@
                 </div>
             </div>
 
+            <!-- Faculty -->
             <div class="bg-gradient-to-br from-teal-400 to-teal-600 rounded-2xl shadow-md p-5 text-white hover:scale-[1.02] transition-transform duration-200">
                 <div class="flex items-start justify-between">
                     <div>
@@ -225,6 +227,7 @@
                 </div>
             </div>
 
+            <!-- Guides -->
             <div class="bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-2xl shadow-md p-5 text-white hover:scale-[1.02] transition-transform duration-200">
                 <div class="flex items-start justify-between">
                     <div>
@@ -237,6 +240,59 @@
                 </div>
             </div>
 
+            <!-- Batches -->
+            <div class="bg-gradient-to-br from-purple-400 to-purple-600 rounded-2xl shadow-md p-5 text-white hover:scale-[1.02] transition-transform duration-200">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <p class="text-purple-100 text-xs font-semibold uppercase tracking-wider">Batches</p>
+                        <h3 class="text-3xl font-black mt-2">{{ $totalBatches ?? 0 }}</h3>
+                    </div>
+                    <div class="bg-white/20 rounded-lg p-2.5">
+                        <i class="fas fa-layer-group text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Applications -->
+            <div class="bg-gradient-to-br from-amber-400 to-amber-500 rounded-2xl shadow-md p-5 text-white hover:scale-[1.02] transition-transform duration-200">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <p class="text-amber-100 text-xs font-semibold uppercase tracking-wider">Internship Applications</p>
+                        <h3 class="text-3xl font-black mt-2">{{ $totalApplications ?? 0 }}</h3>
+                    </div>
+                    <div class="bg-white/20 rounded-lg p-2.5">
+                        <i class="fas fa-file-signature text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pending -->
+            <div class="bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-2xl shadow-md p-5 text-white hover:scale-[1.02] transition-transform duration-200">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <p class="text-yellow-100 text-xs font-semibold uppercase tracking-wider">Pending Review</p>
+                        <h3 class="text-3xl font-black mt-2">{{ $pendingApplications ?? 0 }}</h3>
+                    </div>
+                    <div class="bg-white/20 rounded-lg p-2.5">
+                        <i class="fas fa-hourglass-half text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Approved -->
+            <div class="bg-gradient-to-br from-emerald-400 to-emerald-500 rounded-2xl shadow-md p-5 text-white hover:scale-[1.02] transition-transform duration-200">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <p class="text-emerald-100 text-xs font-semibold uppercase tracking-wider">Approved</p>
+                        <h3 class="text-3xl font-black mt-2">{{ $approvedApplications ?? 0 }}</h3>
+                    </div>
+                    <div class="bg-white/20 rounded-lg p-2.5">
+                        <i class="fas fa-check-circle text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NOCs -->
             <div class="bg-gradient-to-br from-rose-400 to-rose-600 rounded-2xl shadow-md p-5 text-white hover:scale-[1.02] transition-transform duration-200">
                 <div class="flex items-start justify-between">
                     <div>
