@@ -11,140 +11,108 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
         <!-- Statistics Cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
             <!-- Total Users -->
-            <div class="bg-indigo-500 rounded-xl shadow-lg shadow-indigo-500/20 p-4 text-white hover:scale-[1.02] transition-transform duration-200">
-                <div class="flex items-start justify-between">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 border-t-[3px] border-t-cyan-400 p-5 hover:shadow-md transition-shadow duration-200">
+                <div class="flex items-center space-x-4">
+                    <div class="w-11 h-11 rounded-xl bg-cyan-500 flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-users text-white text-lg"></i>
+                    </div>
                     <div>
-                        <p class="text-indigo-100 text-sm font-medium mb-1">Total Users</p>
-                        <h3 class="text-3xl font-bold">{{ $totalUsers }}</h3>
+                        <p class="text-cyan-600 text-xs font-bold uppercase tracking-wider">Total Users</p>
+                        <h3 class="text-2xl font-bold text-gray-800 mt-0.5">{{ $totalUsers }}</h3>
                     </div>
-                    <div class="bg-white/20 rounded-lg p-2">
-                        <i class="fas fa-users text-xl"></i>
-                    </div>
-                </div>
-                <div class="mt-4 flex items-center text-xs text-indigo-100">
-                    <i class="fas fa-arrow-right mr-1"></i>
-                    <span>Total registered users</span>
                 </div>
             </div>
 
             <!-- Total Students -->
-            <div class="bg-blue-500 rounded-xl shadow-lg shadow-blue-500/20 p-4 text-white hover:scale-[1.02] transition-transform duration-200">
-                <div class="flex items-start justify-between">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 border-t-[3px] border-t-blue-400 p-5 hover:shadow-md transition-shadow duration-200">
+                <div class="flex items-center space-x-4">
+                    <div class="w-11 h-11 rounded-xl bg-blue-500 flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-user-graduate text-white text-lg"></i>
+                    </div>
                     <div>
-                        <p class="text-blue-100 text-sm font-medium mb-1">Total Students</p>
-                        <h3 class="text-3xl font-bold">{{ $totalStudents }}</h3>
+                        <p class="text-blue-600 text-xs font-bold uppercase tracking-wider">Total Students</p>
+                        <h3 class="text-2xl font-bold text-gray-800 mt-0.5">{{ $totalStudents }}</h3>
                     </div>
-                    <div class="bg-white/20 rounded-lg p-2">
-                        <i class="fas fa-user-graduate text-xl"></i>
-                    </div>
-                </div>
-                <div class="mt-4 flex items-center text-xs text-blue-100">
-                    <i class="fas fa-arrow-right mr-1"></i>
-                    <span>Registered in portal</span>
                 </div>
             </div>
 
             <!-- Total Faculty -->
-            <div class="bg-teal-500 rounded-xl shadow-lg shadow-teal-500/20 p-4 text-white hover:scale-[1.02] transition-transform duration-200">
-                <div class="flex items-start justify-between">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 border-t-[3px] border-t-teal-400 p-5 hover:shadow-md transition-shadow duration-200">
+                <div class="flex items-center space-x-4">
+                    <div class="w-11 h-11 rounded-xl bg-teal-500 flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-chalkboard-teacher text-white text-lg"></i>
+                    </div>
                     <div>
-                        <p class="text-teal-100 text-sm font-medium mb-1">Total Faculty</p>
-                        <h3 class="text-3xl font-bold">{{ $totalFaculty }}</h3>
+                        <p class="text-teal-600 text-xs font-bold uppercase tracking-wider">Total Faculty</p>
+                        <h3 class="text-2xl font-bold text-gray-800 mt-0.5">{{ $totalFaculty }}</h3>
                     </div>
-                    <div class="bg-white/20 rounded-lg p-2">
-                        <i class="fas fa-chalkboard-teacher text-xl"></i>
-                    </div>
-                </div>
-                <div class="mt-4 flex items-center text-xs text-teal-100">
-                    <i class="fas fa-arrow-right mr-1"></i>
-                    <span>Application reviewers</span>
                 </div>
             </div>
 
-            <!-- Total Higher Faculty -->
-            <div class="bg-purple-500 rounded-xl shadow-lg shadow-purple-500/20 p-4 text-white hover:scale-[1.02] transition-transform duration-200">
-                <div class="flex items-start justify-between">
+            <!-- Higher Faculty -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 border-t-[3px] border-t-purple-400 p-5 hover:shadow-md transition-shadow duration-200">
+                <div class="flex items-center space-x-4">
+                    <div class="w-11 h-11 rounded-xl bg-purple-500 flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-graduation-cap text-white text-lg"></i>
+                    </div>
                     <div>
-                        <p class="text-purple-100 text-sm font-medium mb-1">Higher Faculty</p>
-                        <h3 class="text-3xl font-bold">{{ $totalHigherFaculty }}</h3>
+                        <p class="text-purple-600 text-xs font-bold uppercase tracking-wider">Higher Faculty</p>
+                        <h3 class="text-2xl font-bold text-gray-800 mt-0.5">{{ $totalHigherFaculty }}</h3>
                     </div>
-                    <div class="bg-white/20 rounded-lg p-2">
-                        <i class="fas fa-graduation-cap text-xl"></i>
-                    </div>
-                </div>
-                <div class="mt-4 flex items-center text-xs text-purple-100">
-                    <i class="fas fa-arrow-right mr-1"></i>
-                    <span>Final approvers / NOC issuers</span>
                 </div>
             </div>
 
             <!-- Total Applications -->
-            <div class="bg-orange-500 rounded-xl shadow-lg shadow-orange-500/20 p-4 text-white hover:scale-[1.02] transition-transform duration-200">
-                <div class="flex items-start justify-between">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 border-t-[3px] border-t-orange-400 p-5 hover:shadow-md transition-shadow duration-200">
+                <div class="flex items-center space-x-4">
+                    <div class="w-11 h-11 rounded-xl bg-orange-500 flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-file-signature text-white text-lg"></i>
+                    </div>
                     <div>
-                        <p class="text-orange-100 text-sm font-medium mb-1">Total Applications</p>
-                        <h3 class="text-3xl font-bold">{{ $totalApplications }}</h3>
+                        <p class="text-orange-600 text-xs font-bold uppercase tracking-wider">Applications</p>
+                        <h3 class="text-2xl font-bold text-gray-800 mt-0.5">{{ $totalApplications }}</h3>
                     </div>
-                    <div class="bg-white/20 rounded-lg p-2">
-                        <i class="fas fa-file-signature text-xl"></i>
-                    </div>
-                </div>
-                <div class="mt-4 flex items-center text-xs text-orange-100">
-                    <i class="fas fa-arrow-right mr-1"></i>
-                    <span>Submitted by students</span>
                 </div>
             </div>
 
             <!-- Approved Applications -->
-            <div class="bg-green-500 rounded-xl shadow-lg shadow-green-500/20 p-4 text-white hover:scale-[1.02] transition-transform duration-200">
-                <div class="flex items-start justify-between">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 border-t-[3px] border-t-green-400 p-5 hover:shadow-md transition-shadow duration-200">
+                <div class="flex items-center space-x-4">
+                    <div class="w-11 h-11 rounded-xl bg-green-500 flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-check-circle text-white text-lg"></i>
+                    </div>
                     <div>
-                        <p class="text-green-100 text-sm font-medium mb-1">Approved Applications</p>
-                        <h3 class="text-3xl font-bold">{{ $approvedApplications }}</h3>
+                        <p class="text-green-600 text-xs font-bold uppercase tracking-wider">Approved</p>
+                        <h3 class="text-2xl font-bold text-gray-800 mt-0.5">{{ $approvedApplications }}</h3>
                     </div>
-                    <div class="bg-white/20 rounded-lg p-2">
-                        <i class="fas fa-check-circle text-xl"></i>
-                    </div>
-                </div>
-                <div class="mt-4 flex items-center text-xs text-green-100">
-                    <i class="fas fa-arrow-right mr-1"></i>
-                    <span>Approved by Faculty/Higher</span>
                 </div>
             </div>
 
             <!-- Rejected Applications -->
-            <div class="bg-red-500 rounded-xl shadow-lg shadow-red-500/20 p-4 text-white hover:scale-[1.02] transition-transform duration-200">
-                <div class="flex items-start justify-between">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 border-t-[3px] border-t-rose-400 p-5 hover:shadow-md transition-shadow duration-200">
+                <div class="flex items-center space-x-4">
+                    <div class="w-11 h-11 rounded-xl bg-rose-500 flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-times-circle text-white text-lg"></i>
+                    </div>
                     <div>
-                        <p class="text-red-100 text-sm font-medium mb-1">Rejected Applications</p>
-                        <h3 class="text-3xl font-bold">{{ $rejectedApplications }}</h3>
+                        <p class="text-rose-600 text-xs font-bold uppercase tracking-wider">Rejected</p>
+                        <h3 class="text-2xl font-bold text-gray-800 mt-0.5">{{ $rejectedApplications }}</h3>
                     </div>
-                    <div class="bg-white/20 rounded-lg p-2">
-                        <i class="fas fa-times-circle text-xl"></i>
-                    </div>
-                </div>
-                <div class="mt-4 flex items-center text-xs text-red-100">
-                    <i class="fas fa-arrow-right mr-1"></i>
-                    <span>Rejected applications</span>
                 </div>
             </div>
 
             <!-- Generated NOCs -->
-            <div class="bg-emerald-600 rounded-xl shadow-lg shadow-emerald-600/20 p-4 text-white hover:scale-[1.02] transition-transform duration-200">
-                <div class="flex items-start justify-between">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 border-t-[3px] border-t-pink-400 p-5 hover:shadow-md transition-shadow duration-200">
+                <div class="flex items-center space-x-4">
+                    <div class="w-11 h-11 rounded-xl bg-pink-500 flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-certificate text-white text-lg"></i>
+                    </div>
                     <div>
-                        <p class="text-emerald-100 text-sm font-medium mb-1">Generated NOCs</p>
-                        <h3 class="text-3xl font-bold">{{ $generatedNocs }}</h3>
+                        <p class="text-pink-600 text-xs font-bold uppercase tracking-wider">NOCs Generated</p>
+                        <h3 class="text-2xl font-bold text-gray-800 mt-0.5">{{ $generatedNocs }}</h3>
                     </div>
-                    <div class="bg-white/20 rounded-lg p-2">
-                        <i class="fas fa-certificate text-xl"></i>
-                    </div>
-                </div>
-                <div class="mt-4 flex items-center text-xs text-emerald-100">
-                    <i class="fas fa-arrow-right mr-1"></i>
-                    <span>Official NOC PDFs issued</span>
                 </div>
             </div>
         </div>

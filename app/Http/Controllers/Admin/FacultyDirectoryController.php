@@ -58,6 +58,10 @@ class FacultyDirectoryController extends Controller
         $semesters = collect();
         $activeTab = 'faculty_directory';
 
+        $guides = User::whereIn('role_id', [$facultyRole->id, $higherFacultyRole->id])
+            ->whereHas('permissions', fn($q) => $q->where('permission', 'guide'))
+            ->orderBy('name')->get();
+
         return view('admin.dashboard', compact(
             'faculty',
             'students',
@@ -72,6 +76,7 @@ class FacultyDirectoryController extends Controller
             'pendingApplications',
             'approvedApplications',
             'generatedNocs',
+            'guides',
             'activeTab'
         ));
     }
@@ -81,29 +86,66 @@ class FacultyDirectoryController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
-            'faculty_id' => 'required|string|max:255|unique:users,faculty_id',
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users,email',
-            'department' => 'required|string|max:255',
-            'designation' => 'required|string|max:255',
-        ]);
+        $existingSoftDeleted = User::onlyTrashed()
+            ->where(function($q) use ($request) {
+                if ($request->filled('faculty_id')) {
+                    $q->where('faculty_id', $request->faculty_id);
+                }
+                if ($request->filled('email')) {
+                    $q->orWhere('email', $request->email);
+                }
+            })->first();
 
-        $facultyRole = Role::where('name', 'faculty')->first() ?? (object)['id' => 2];
+        if ($existingSoftDeleted) {
+            $request->validate([
+                'faculty_id' => 'required|string|max:255|unique:users,faculty_id,' . $existingSoftDeleted->id,
+                'name' => 'required|string|max:255',
+                'email' => 'required|string|email|max:255|unique:users,email,' . $existingSoftDeleted->id,
+                'department' => 'required|string|max:255',
+                'designation' => 'required|string|max:255',
+            ]);
 
-        // Create faculty record
-        $faculty = User::create([
-            'faculty_id' => $request->faculty_id,
-            'name' => $request->name,
-            'email' => $request->email,
-            'department' => $request->department,
-            'designation' => $request->designation,
-            'role_id' => $facultyRole->id,
-            'phone' => 'N/A',
-            'password' => Hash::make(\Illuminate\Support\Str::random(16)),
-            'account_status' => 'inactive', // directory record
-            'status' => 'Active',
-        ]);
+            $existingSoftDeleted->restore();
+            $facultyRole = Role::where('name', 'faculty')->first() ?? (object)['id' => 2];
+
+            $existingSoftDeleted->update([
+                'faculty_id' => $request->faculty_id,
+                'name' => $request->name,
+                'email' => $request->email,
+                'department' => $request->department,
+                'designation' => $request->designation,
+                'role_id' => $facultyRole->id,
+                'phone' => 'N/A',
+                'account_status' => 'inactive',
+                'status' => 'Active',
+            ]);
+
+            $faculty = $existingSoftDeleted;
+        } else {
+            $request->validate([
+                'faculty_id' => 'required|string|max:255|unique:users,faculty_id',
+                'name' => 'required|string|max:255',
+                'email' => 'required|string|email|max:255|unique:users,email',
+                'department' => 'required|string|max:255',
+                'designation' => 'required|string|max:255',
+            ]);
+
+            $facultyRole = Role::where('name', 'faculty')->first() ?? (object)['id' => 2];
+
+            // Create faculty record
+            $faculty = User::create([
+                'faculty_id' => $request->faculty_id,
+                'name' => $request->name,
+                'email' => $request->email,
+                'department' => $request->department,
+                'designation' => $request->designation,
+                'role_id' => $facultyRole->id,
+                'phone' => 'N/A',
+                'password' => Hash::make(\Illuminate\Support\Str::random(16)),
+                'account_status' => 'inactive', // directory record
+                'status' => 'Active',
+            ]);
+        }
 
         AuditLog::log(
             "Created directory faculty record: {$faculty->name} ({$faculty->faculty_id})",

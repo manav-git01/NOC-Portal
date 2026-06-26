@@ -38,7 +38,7 @@
         <!-- Batch Information & Statistics -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
-            <!-- Cohort Details Card -->
+            <!-- Batch Details Card -->
             <div class="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm flex flex-col justify-between lg:col-span-1">
                 <div>
                     <div class="flex items-center space-x-3 mb-4">
@@ -47,7 +47,7 @@
                         </div>
                         <div>
                             <h2 class="text-lg font-black text-gray-955">{{ $batch->name }}</h2>
-                            <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Academic Cohort</p>
+                            <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Academic Batch</p>
                         </div>
                     </div>
 
@@ -100,7 +100,7 @@
                             <p class="text-[9px] text-gray-400 mt-1">Awaiting NOC generation</p>
                         </div>
                         <div class="bg-teal-50/50 border border-teal-100 rounded-xl p-4 text-center">
-                            <p class="text-[10px] text-teal-650 font-bold uppercase">NOCs Generated</p>
+                            <p class="text-[10px] text-teal-600 font-bold uppercase">NOCs Generated</p>
                             <p class="text-2xl font-black text-teal-700 mt-1">{{ $nocGeneratedCount }}</p>
                             <p class="text-[9px] text-gray-400 mt-1">Finalized NOC certificates</p>
                         </div>
@@ -109,7 +109,7 @@
                 
                 <div class="text-[11px] font-medium text-gray-400 flex items-center">
                     <i class="fas fa-info-circle text-indigo-500 mr-1.5 text-xs"></i>
-                    Changing the batch guide below will apply the change to all students currently registered in this cohort.
+                    Changing the batch guide below will apply the change to all students currently registered in this batch.
                 </div>
             </div>
 
@@ -120,7 +120,7 @@
             <div class="px-6 py-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h3 class="text-md font-bold text-gray-900">Students Registered</h3>
-                    <p class="text-xs text-gray-500">View and update individual batch cohorts and guide associations</p>
+                    <p class="text-xs text-gray-500">View and update individual student and guide associations</p>
                 </div>
             </div>
 
@@ -272,7 +272,7 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Select Cohort / Batch</label>
+                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Select Batch</label>
                     <select name="batch_id" required class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-gray-800 font-semibold shadow-xs">
                         <option value="" disabled selected>Select Batch...</option>
                         @foreach($batches as $b)
@@ -285,7 +285,7 @@
                     <button type="button" @click="showChangeBatchModal = false" class="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-bold text-sm transition">
                         Cancel
                     </button>
-                    <button type="submit" class="flex-1 py-2.5 bg-indigo-650 hover:bg-indigo-700 text-white rounded-lg font-bold text-sm transition shadow-sm">
+                    <button type="submit" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-sm transition shadow-sm">
                         Save Changes
                     </button>
                 </div>
@@ -326,7 +326,7 @@
                     <button type="button" @click="showChangeGuideModal = false" class="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-bold text-sm transition">
                         Cancel
                     </button>
-                    <button type="submit" class="flex-1 py-2.5 bg-indigo-650 hover:bg-indigo-700 text-white rounded-lg font-bold text-sm transition shadow-sm">
+                    <button type="submit" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-sm transition shadow-sm">
                         Save Changes
                     </button>
                 </div>
@@ -339,7 +339,7 @@
         <div class="bg-white rounded-2xl shadow-xl border border-gray-150 max-w-md w-full overflow-hidden" @click.away="showChangeBatchGuideModal = false">
             <div class="bg-amber-600 text-white px-6 py-4 flex justify-between items-center">
                 <h4 class="font-bold flex items-center">
-                    <i class="fas fa-exclamation-triangle mr-2 text-amber-200"></i>Reassign Cohort Guide
+                    <i class="fas fa-exclamation-triangle mr-2 text-amber-200"></i>Reassign Batch Guide
                 </h4>
                 <button @click="showChangeBatchGuideModal = false" class="text-white/80 hover:text-white transition">
                     <i class="fas fa-times text-lg"></i>
@@ -348,14 +348,14 @@
             
             <form action="{{ route('admin.batches.change-guide', $batch->id) }}" method="POST" class="p-6 space-y-4">
                 @csrf
-                <div class="bg-amber-50 border border-amber-250 p-4 rounded-xl text-xs text-amber-850 space-y-1">
+                <div class="bg-amber-50 border border-amber-200 p-4 rounded-xl text-xs text-amber-800 space-y-1">
                     <p class="font-bold uppercase tracking-wider text-[10px]">Warning</p>
                     <p>This action will update all students currently registered in the batch <strong>{{ $batch->name }}</strong>.</p>
                     <p class="font-bold text-sm pt-2">Students Affected: {{ $totalStudents }}</p>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Select Cohort Guide</label>
+                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Select Batch Guide</label>
                     <select name="guide_id" required class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-gray-800 font-semibold shadow-xs">
                         <option value="" disabled selected>Select Guide...</option>
                         @foreach($faculty as $fac)
@@ -368,7 +368,7 @@
                     <button type="button" @click="showChangeBatchGuideModal = false" class="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-bold text-sm transition">
                         Cancel
                     </button>
-                    <button type="submit" class="flex-1 py-2.5 bg-amber-650 hover:bg-amber-700 text-white rounded-lg font-bold text-sm transition shadow-sm">
+                    <button type="submit" class="flex-1 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-sm transition shadow-sm">
                         Confirm Reassignment
                     </button>
                 </div>

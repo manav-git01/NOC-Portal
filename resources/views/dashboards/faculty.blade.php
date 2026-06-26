@@ -9,72 +9,56 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
         <!-- Statistics Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
             <!-- Pending Review -->
-            <div class="bg-blue-500 rounded-xl shadow-lg shadow-blue-500 p-4 text-white">
-                <div class="flex items-start justify-between">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 border-t-[3px] border-t-blue-400 p-5 hover:shadow-md transition-shadow duration-200">
+                <div class="flex items-center space-x-4">
+                    <div class="w-11 h-11 rounded-xl bg-blue-500 flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-clock text-white text-lg"></i>
+                    </div>
                     <div>
-                        <p class="text-blue-100 text-sm font-medium mb-1">Pending Review</p>
-                        <h3 class="text-3xl font-bold">{{ $pendingApplications->count() }}</h3>
+                        <p class="text-blue-600 text-xs font-bold uppercase tracking-wider">Pending Review</p>
+                        <h3 class="text-2xl font-bold text-gray-800 mt-0.5">{{ $pendingApplications->count() }}</h3>
                     </div>
-                    <div class="bg-white/20 rounded-lg p-2">
-                        <i class="fas fa-clock text-xl"></i>
-                    </div>
-                </div>
-                <div class="mt-4 flex items-center text-xs text-blue-100">
-                    <i class="fas fa-arrow-up mr-1"></i>
-                    <span>Awaiting your review</span>
                 </div>
             </div>
 
             <!-- Approved by You -->
-            <div class="bg-green-500 rounded-xl shadow-lg shadow-green-500 p-4 text-white">
-                <div class="flex items-start justify-between">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 border-t-[3px] border-t-green-400 p-5 hover:shadow-md transition-shadow duration-200">
+                <div class="flex items-center space-x-4">
+                    <div class="w-11 h-11 rounded-xl bg-green-500 flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-check-circle text-white text-lg"></i>
+                    </div>
                     <div>
-                        <p class="text-green-100 text-sm font-medium mb-1">Approved by You</p>
-                        <h3 class="text-3xl font-bold">{{ $approvedCount ?? 0 }}</h3>
+                        <p class="text-green-600 text-xs font-bold uppercase tracking-wider">Approved by You</p>
+                        <h3 class="text-2xl font-bold text-gray-800 mt-0.5">{{ $approvedCount ?? 0 }}</h3>
                     </div>
-                    <div class="bg-white/20 rounded-lg p-2">
-                        <i class="fas fa-check-circle text-xl"></i>
-                    </div>
-                </div>
-                <div class="mt-4 flex items-center text-xs text-green-100">
-                    <i class="fas fa-check mr-1"></i>
-                    <span>Total approvals</span>
                 </div>
             </div>
 
             <!-- Rejected by You -->
-            <div class="bg-red-500 rounded-xl shadow-lg shadow-red-500 p-4 text-white">
-                <div class="flex items-start justify-between">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 border-t-[3px] border-t-rose-400 p-5 hover:shadow-md transition-shadow duration-200">
+                <div class="flex items-center space-x-4">
+                    <div class="w-11 h-11 rounded-xl bg-rose-500 flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-times-circle text-white text-lg"></i>
+                    </div>
                     <div>
-                        <p class="text-red-100 text-sm font-medium mb-1">Rejected by You</p>
-                        <h3 class="text-3xl font-bold">{{ $rejectedCount ?? 0 }}</h3>
+                        <p class="text-rose-600 text-xs font-bold uppercase tracking-wider">Rejected by You</p>
+                        <h3 class="text-2xl font-bold text-gray-800 mt-0.5">{{ $rejectedCount ?? 0 }}</h3>
                     </div>
-                    <div class="bg-white/20 rounded-lg p-2">
-                        <i class="fas fa-times-circle text-xl"></i>
-                    </div>
-                </div>
-                <div class="mt-4 flex items-center text-xs text-red-100">
-                    <i class="fas fa-ban mr-1"></i>
-                    <span>Total rejections</span>
                 </div>
             </div>
 
             <!-- Total Reviewed -->
-            <div class="bg-green-600 rounded-xl shadow-lg shadow-green-600 p-4 text-white">
-                <div class="flex items-start justify-between">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 border-t-[3px] border-t-teal-400 p-5 hover:shadow-md transition-shadow duration-200">
+                <div class="flex items-center space-x-4">
+                    <div class="w-11 h-11 rounded-xl bg-teal-500 flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-clipboard-check text-white text-lg"></i>
+                    </div>
                     <div>
-                        <p class="text-green-200 text-sm font-medium mb-1">Total Reviewed</p>
-                        <h3 class="text-3xl font-bold">{{ $totalReviewed ?? 0 }}</h3>
+                        <p class="text-teal-600 text-xs font-bold uppercase tracking-wider">Total Reviewed</p>
+                        <h3 class="text-2xl font-bold text-gray-800 mt-0.5">{{ $totalReviewed ?? 0 }}</h3>
                     </div>
-                    <div class="bg-white/20 rounded-lg p-2">
-                        <i class="fas fa-clipboard-check text-xl"></i>
-                    </div>
-                </div>
-                <div class="mt-4 flex items-center text-xs text-green-200">
-                    <i class="fas fa-list mr-1"></i>
-                    <span>All decisions made</span>
                 </div>
             </div>
         </div>

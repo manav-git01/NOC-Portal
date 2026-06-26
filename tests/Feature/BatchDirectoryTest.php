@@ -220,4 +220,51 @@ class BatchDirectoryTest extends TestCase
             'action' => 'Changed Batch Guide',
         ]);
     }
+
+    public function test_automatic_default_guide_assignment_when_students_moved_have_same_guide(): void
+    {
+        // 1. Create a target batch with no default guide
+        $targetBatch = Batch::create([
+            'name' => 'IT_2025_TEST',
+            'guide_id' => null,
+        ]);
+
+        // 2. Create a faculty (Hemant Yadav)
+        $hemant = User::create([
+            'name' => 'Hemant Yadav',
+            'email' => 'hemant@example.ac.in',
+            'password' => bcrypt('password'),
+            'role_id' => $this->facultyRole->id,
+            'phone' => '7777777777',
+        ]);
+        $hemant->assignPermission('guide');
+
+        // 3. Create 5 students who are all assigned to Hemant Yadav
+        $students = [];
+        for ($i = 1; $i <= 5; $i++) {
+            $students[] = User::create([
+                'name' => "Student {$i}",
+                'email' => "student{$i}@charusat.edu.in",
+                'enrollment_number' => "23IT10{$i}",
+                'password' => bcrypt('password'),
+                'role_id' => $this->studentRole->id,
+                'batch_id' => $this->batchB->id, // Starts in batch B
+                'guide_id' => $hemant->id,       // Guide is Hemant Yadav
+                'phone' => "900000000{$i}",
+            ]);
+        }
+
+        // 4. Move all 5 students to targetBatch (using bulk transfer)
+        $response = $this->actingAs($this->admin)
+            ->post(route('admin.batches.bulk-transfer'), [
+                'student_ids' => collect($students)->pluck('id')->toArray(),
+                'batch_id' => $targetBatch->id,
+            ]);
+
+        $response->assertRedirect();
+
+        // 5. Verify the target batch guide has been automatically updated to Hemant Yadav
+        $targetBatch->refresh();
+        $this->assertEquals($hemant->id, $targetBatch->guide_id);
+    }
 }

@@ -30,7 +30,21 @@ class BatchDirectoryController extends Controller
         $students = User::where('batch_id', $batch->id)
             ->where('role_id', $studentRole->id)
             ->with(['guide', 'internshipApplications.noc'])
+            ->orderBy('enrollment_number')
             ->get();
+
+        // Sync/Verify the batch guide assignment dynamically
+        if ($students->isNotEmpty()) {
+            $guideIds = $students->pluck('guide_id')->filter()->unique();
+            $allHaveGuide = $students->every(fn($s) => $s->guide_id !== null);
+            if ($allHaveGuide && $guideIds->count() === 1) {
+                $commonGuideId = $guideIds->first();
+                if ($batch->guide_id !== $commonGuideId) {
+                    $batch->update(['guide_id' => $commonGuideId]);
+                    $batch->load('guide');
+                }
+            }
+        }
 
         $totalStudents = $students->count();
 
@@ -107,6 +121,21 @@ class BatchDirectoryController extends Controller
                     'new_guide_id' => $newBatch->guide_id,
                     'changed_by' => auth()->id(),
                 ]);
+            }
+
+            // Post-transfer: if all students in this batch have the same guide, assign it as the batch's default guide
+            $studentRole = Role::where('name', 'student')->first();
+            if ($studentRole) {
+                $batchStudents = User::where('batch_id', $newBatch->id)
+                    ->where('role_id', $studentRole->id)
+                    ->get();
+                if ($batchStudents->isNotEmpty()) {
+                    $guideIds = $batchStudents->pluck('guide_id')->filter()->unique();
+                    $allHaveGuide = $batchStudents->every(fn($s) => $s->guide_id !== null);
+                    if ($allHaveGuide && $guideIds->count() === 1) {
+                        $newBatch->update(['guide_id' => $guideIds->first()]);
+                    }
+                }
             }
         });
 
@@ -324,6 +353,21 @@ class BatchDirectoryController extends Controller
                             'new_guide_id' => $newBatch->guide_id,
                             'changed_by' => auth()->id(),
                         ]);
+                    }
+                }
+            }
+
+            // Post-transfer: if all students in this batch have the same guide, assign it as the batch's default guide
+            $studentRole = Role::where('name', 'student')->first();
+            if ($studentRole) {
+                $batchStudents = User::where('batch_id', $newBatch->id)
+                    ->where('role_id', $studentRole->id)
+                    ->get();
+                if ($batchStudents->isNotEmpty()) {
+                    $guideIds = $batchStudents->pluck('guide_id')->filter()->unique();
+                    $allHaveGuide = $batchStudents->every(fn($s) => $s->guide_id !== null);
+                    if ($allHaveGuide && $guideIds->count() === 1) {
+                        $newBatch->update(['guide_id' => $guideIds->first()]);
                     }
                 }
             }

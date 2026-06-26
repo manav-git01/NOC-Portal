@@ -11,7 +11,6 @@ use App\Http\Controllers\Admin\StudentDirectoryController;
 use App\Http\Controllers\Admin\FacultyDirectoryController;
 use App\Http\Controllers\Admin\GuideAssignmentController;
 use App\Http\Controllers\Admin\AuthorityManagementController;
-use App\Http\Controllers\Admin\AccountManagementController;
 use App\Http\Controllers\Admin\AuditLogController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
@@ -81,6 +80,10 @@ Route::middleware(['auth', 'role:faculty'])->prefix('faculty')->name('faculty.')
         ->middleware('guide_only')
         ->name('guide-dashboard');
 
+    Route::get('/guide-dashboard/batch/{batch}', [App\Http\Controllers\Faculty\GuideDashboardController::class, 'showBatch'])
+        ->middleware('guide_only')
+        ->name('guide.batch-students');
+
     Route::get('/guide-dashboard/application/{application}', [App\Http\Controllers\Faculty\GuideDashboardController::class, 'showApplication'])
         ->middleware('guide_only')
         ->name('guide.application-details');
@@ -106,10 +109,10 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/student-directory', [StudentDirectoryController::class, 'store'])->name('student-directory.store');
     Route::put('/student-directory/{user}', [StudentDirectoryController::class, 'update'])->name('student-directory.update');
     Route::delete('/student-directory/{user}', [StudentDirectoryController::class, 'destroy'])->name('student-directory.destroy');
-    Route::post('/student-directory/import', [StudentDirectoryController::class, 'import'])->name('student-directory.import');
     Route::post('/student-directory/{user}/assign-guide', [StudentDirectoryController::class, 'assignGuide'])->name('student-directory.assign-guide');
     Route::post('/student-directory/{user}/remove-guide', [StudentDirectoryController::class, 'removeGuide'])->name('student-directory.remove-guide');
     Route::post('/student-directory/{user}/move-batch', [StudentDirectoryController::class, 'moveBatch'])->name('student-directory.move-batch');
+    Route::post('/student-directory/{user}/deactivate', [StudentDirectoryController::class, 'deactivate'])->name('student-directory.deactivate');
 
     // Faculty Directory (Module 2)
     Route::get('/faculty-directory', [FacultyDirectoryController::class, 'index'])->name('faculty-directory.index');
@@ -128,10 +131,6 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/authority-management', [AuthorityManagementController::class, 'index'])->name('authority-management.index');
     Route::put('/authority-management/{user}', [AuthorityManagementController::class, 'update'])->name('authority-management.update');
 
-    // Account Management (Module 9)
-    Route::get('/account-management', [AccountManagementController::class, 'index'])->name('account-management.index');
-    Route::post('/account-management/{user}/activate', [AccountManagementController::class, 'activate'])->name('account-management.activate');
-    Route::post('/account-management/{user}/deactivate', [AccountManagementController::class, 'deactivate'])->name('account-management.deactivate');
 
     // Audit Logs (Module 10)
     Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
@@ -141,11 +140,10 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::put('/batches/{batch}', [AdminDashboardController::class, 'updateBatch'])->name('batches.update');
     Route::delete('/batches/{batch}', [AdminDashboardController::class, 'destroyBatch'])->name('batches.destroy');
 
-    // Student CRUD & Import
+    // Student CRUD
     Route::post('/students', [AdminDashboardController::class, 'storeStudent'])->name('students.store');
     Route::put('/students/{user}', [AdminDashboardController::class, 'updateStudent'])->name('students.update');
     Route::delete('/students/{user}', [AdminDashboardController::class, 'destroyStudent'])->name('students.destroy');
-    Route::post('/students/import', [AdminDashboardController::class, 'importStudents'])->name('students.import');
 
     // Faculty CRUD & Delete
     Route::delete('/faculty/{user}', [AdminDashboardController::class, 'destroyFaculty'])->name('faculty.destroy');

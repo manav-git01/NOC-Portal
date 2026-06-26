@@ -58,20 +58,36 @@ class RegisteredUserController extends Controller
                 : 'Faculty members must use an email address ending with @ac.in',
         ]);
 
-        // Custom Unique Check for active/pending accounts
+        // Custom Unique Check for active accounts
         $existingEmail = User::where('email', $request->email)
-            ->whereIn('account_status', ['active', 'pending'])
+            ->where('account_status', 'active')
             ->first();
         if ($existingEmail) {
             return back()->withErrors(['email' => 'The email has already been taken.'])->withInput();
         }
 
+        $existingDeactivated = User::where('email', $request->email)
+            ->where('account_status', 'inactive')
+            ->whereNotIn('phone', ['N/A', '0000000000'])
+            ->first();
+        if ($existingDeactivated) {
+            return back()->withErrors(['email' => 'This account has been deactivated. Please contact the administrator.'])->withInput();
+        }
+
         if ($request->role_id == 1) {
             $existingEnroll = User::where('enrollment_number', $request->enrollment_number)
-                ->whereIn('account_status', ['active', 'pending'])
+                ->where('account_status', 'active')
                 ->first();
             if ($existingEnroll) {
                 return back()->withErrors(['enrollment_number' => 'The enrollment number has already been taken.'])->withInput();
+            }
+
+            $existingDeactivatedEnroll = User::where('enrollment_number', $request->enrollment_number)
+                ->where('account_status', 'inactive')
+                ->whereNotIn('phone', ['N/A', '0000000000'])
+                ->first();
+            if ($existingDeactivatedEnroll) {
+                return back()->withErrors(['enrollment_number' => 'This account has been deactivated. Please contact the administrator.'])->withInput();
             }
         }
 
@@ -81,11 +97,13 @@ class RegisteredUserController extends Controller
             // Student: Match by enrollment number
             $matchedUser = User::where('enrollment_number', $request->enrollment_number)
                 ->where('account_status', 'inactive')
+                ->whereIn('phone', ['N/A', '0000000000'])
                 ->first();
         } else {
             // Faculty/Higher: Match by email
             $matchedUser = User::where('email', $request->email)
                 ->where('account_status', 'inactive')
+                ->whereIn('phone', ['N/A', '0000000000'])
                 ->first();
         }
 
@@ -110,33 +128,25 @@ class RegisteredUserController extends Controller
             
             $user = $matchedUser;
         } else {
-            // No match found -> create new pending user (except admin who auto-activates)
-            $userData = [
-                'name' => $request->name,
-                'email' => $request->email,
-                'phone' => $request->phone,
-                'role_id' => $request->role_id,
-                'password' => Hash::make($request->password),
-                'account_status' => $request->role_id == $adminRoleId ? 'active' : 'pending',
-                'status' => 'Active',
-            ];
-
-            if ($request->role_id == 1) {
-                $userData['enrollment_number'] = $request->enrollment_number;
-                $userData['department'] = $request->department;
-                $userData['semester'] = $request->semester;
+            // No match found -> if admin, allow immediate activation; otherwise block registration
+            if ($request->role_id == $adminRoleId) {
+                $user = User::create([
+                    'name' => $request->name,
+                    'email' => $request->email,
+                    'phone' => $request->phone,
+                    'role_id' => $request->role_id,
+                    'password' => Hash::make($request->password),
+                    'account_status' => 'active',
+                    'status' => 'Active',
+                ]);
+            } else {
+                return back()->withErrors(['email' => 'Your details were not found in the master directory. Please contact the administrator.'])->withInput();
             }
-
-            $user = User::create($userData);
         }
 
         event(new Registered($user));
 
-        if ($user->account_status === 'active') {
-            Auth::login($user);
-            return redirect(route('dashboard', absolute: false));
-        } else {
-            return redirect()->route('login')->with('status', 'Your registration is pending admin approval because your details were not found in the master directory.');
-        }
+        Auth::login($user);
+        return redirect(route('dashboard', absolute: false));
     }
 }

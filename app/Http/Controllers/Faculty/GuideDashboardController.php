@@ -5,31 +5,98 @@ namespace App\Http\Controllers\Faculty;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Models\Batch;
 use App\Models\InternshipApplication;
 
 class GuideDashboardController extends Controller
 {
     /**
-     * Display the Guide / Mentor Faculty Dashboard.
-     * Student-centric monitoring portal with search & filters.
+     * Display the Guide Dashboard landing page.
+     * Shows overview stats and batch cards.
      */
     public function index(Request $request)
     {
         $guide = auth()->user();
 
-        // Base query: all students assigned to this guide
-        $baseQuery = User::where('guide_id', $guide->id);
+        // All students assigned to this guide
+        $allStudents = User::where('guide_id', $guide->id);
+        $totalStudents = (clone $allStudents)->count();
 
-        // Total assigned students (unfiltered count for the stat card)
-        $totalStudents = $baseQuery->count();
+        // Find all batches that have students assigned to this guide
+        $batchIds = User::where('guide_id', $guide->id)
+            ->whereNotNull('batch_id')
+            ->distinct('batch_id')
+            ->pluck('batch_id');
+
+        $batches = Batch::whereIn('id', $batchIds)->orderBy('name')->get();
+        $totalBatches = $batches->count();
+
+        // Compute per-batch student counts
+        $batchStudentCounts = User::where('guide_id', $guide->id)
+            ->whereNotNull('batch_id')
+            ->selectRaw('batch_id, count(*) as count')
+            ->groupBy('batch_id')
+            ->pluck('count', 'batch_id');
+
+        // Application stats across ALL assigned students
+        $studentIds = User::where('guide_id', $guide->id)->pluck('id');
+
+        $totalApplications = InternshipApplication::whereIn('user_id', $studentIds)->count();
+
+        $pendingApplications = InternshipApplication::whereIn('user_id', $studentIds)
+            ->whereIn('status', ['pending', 'pending_higher'])
+            ->count();
+
+        $approvedApplications = InternshipApplication::whereIn('user_id', $studentIds)
+            ->whereIn('status', ['faculty_approved', 'higher_faculty_approved', 'noc_generated'])
+            ->count();
+
+        $nocGenerated = InternshipApplication::whereIn('user_id', $studentIds)
+            ->whereHas('noc')
+            ->count();
+
+        return view('faculty.guide-dashboard', compact(
+            'totalStudents',
+            'totalBatches',
+            'totalApplications',
+            'pendingApplications',
+            'approvedApplications',
+            'nocGenerated',
+            'batches',
+            'batchStudentCounts'
+        ));
+    }
+
+    /**
+     * Display students for a specific batch.
+     * Full student directory with search & filters.
+     */
+    public function showBatch(Request $request, Batch $batch)
+    {
+        $guide = auth()->user();
+
+        // Verify this guide has students in this batch
+        $hasStudents = User::where('guide_id', $guide->id)
+            ->where('batch_id', $batch->id)
+            ->exists();
+
+        if (!$hasStudents) {
+            abort(403, 'You do not have students assigned in this batch.');
+        }
+
+        // Base query: students assigned to this guide in this batch
+        $baseQuery = User::where('guide_id', $guide->id)
+            ->where('batch_id', $batch->id);
+
+        $totalStudents = (clone $baseQuery)->count();
 
         // Build filtered query
-        $query = User::where('guide_id', $guide->id)
+        $query = (clone $baseQuery)
             ->with(['internshipApplications' => function ($q) {
                 $q->latest()->with(['approvals.approver', 'noc']);
             }]);
 
-        // Search filter: name, enrollment number, or email
+        // Search filter
         if ($request->filled('search')) {
             $search = $request->input('search');
             $query->where(function ($q) use ($search) {
@@ -79,11 +146,28 @@ class GuideDashboardController extends Controller
             }
         }
 
-        $students = $query->orderBy('name')->get();
+        $students = $query->orderBy('enrollment_number')->get();
 
-        return view('faculty.guide-dashboard', compact(
+        // Application stats for this batch
+        $batchStudentIds = User::where('guide_id', $guide->id)
+            ->where('batch_id', $batch->id)
+            ->pluck('id');
+
+        $batchApplications = InternshipApplication::whereIn('user_id', $batchStudentIds)->count();
+        $batchApproved = InternshipApplication::whereIn('user_id', $batchStudentIds)
+            ->whereIn('status', ['faculty_approved', 'higher_faculty_approved', 'noc_generated'])
+            ->count();
+        $batchPending = InternshipApplication::whereIn('user_id', $batchStudentIds)
+            ->whereIn('status', ['pending', 'pending_higher'])
+            ->count();
+
+        return view('faculty.guide-batch-students', compact(
+            'batch',
             'students',
-            'totalStudents'
+            'totalStudents',
+            'batchApplications',
+            'batchApproved',
+            'batchPending'
         ));
     }
 

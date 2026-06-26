@@ -229,4 +229,60 @@ class MultiRoleFacultyTest extends TestCase
         $response->assertSee('Approval Dashboard');
         $response->assertSee('✓');
     }
+
+    public function test_guide_dashboard_filters_by_batch(): void
+    {
+        $faculty = User::create([
+            'name' => 'Guide Faculty',
+            'email' => 'guide_test@example.ac.in',
+            'password' => bcrypt('password'),
+            'role_id' => $this->facultyRole->id,
+            'phone' => '8888888889',
+        ]);
+        $faculty->assignPermission('guide');
+
+        // Create two batches
+        $batch1 = \App\Models\Batch::create(['name' => 'Batch 1']);
+        $batch2 = \App\Models\Batch::create(['name' => 'Batch 2']);
+
+        $studentRole = Role::where('name', 'student')->first();
+
+        // Create student in batch 1 assigned to this guide
+        $student1 = User::create([
+            'name' => 'Student One',
+            'email' => 'std1@example.ac.in',
+            'enrollment_number' => '23IT001',
+            'password' => bcrypt('password'),
+            'role_id' => $studentRole->id,
+            'batch_id' => $batch1->id,
+            'guide_id' => $faculty->id,
+            'phone' => '1234567801',
+        ]);
+
+        // Create student in batch 2 assigned to this guide
+        $student2 = User::create([
+            'name' => 'Student Two',
+            'email' => 'std2@example.ac.in',
+            'enrollment_number' => '23IT002',
+            'password' => bcrypt('password'),
+            'role_id' => $studentRole->id,
+            'batch_id' => $batch2->id,
+            'guide_id' => $faculty->id,
+            'phone' => '1234567802',
+        ]);
+
+        // Access dashboard without specifying batch_id (should default to first batch, Batch 1)
+        $response = $this->actingAs($faculty)->get(route('faculty.guide-dashboard'));
+        $response->assertStatus(200);
+        $response->assertSee('Batch 1');
+        $response->assertSee('Batch 2');
+        $response->assertSee('Student One');
+        $response->assertDontSee('Student Two');
+
+        // Access dashboard specifying batch_id for Batch 2
+        $response = $this->actingAs($faculty)->get(route('faculty.guide-dashboard', ['batch_id' => $batch2->id]));
+        $response->assertStatus(200);
+        $response->assertSee('Student Two');
+        $response->assertDontSee('Student One');
+    }
 }

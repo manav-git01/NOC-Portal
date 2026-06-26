@@ -37,6 +37,7 @@ class User extends Authenticatable
         'authority_type',
         'must_change_password',
         'profile_photo_path',
+        'import_batch',
     ];
 
     /**

@@ -160,84 +160,180 @@ class AdminManagementTest extends TestCase
         $this->assertSoftDeleted('users', ['email' => 'alice@example.edu.in']);
     }
 
-
     /**
-     * Test importing students from XLSX.
+     * Test StudentDirectoryController store, update and destroy routes (used by UI).
      */
-    public function test_import_students_from_xlsx(): void
+    public function test_student_directory_management(): void
     {
+        $batch = Batch::create(['name' => 'IT_2023']);
+        
         $guide = User::create([
-            'name' => 'CSV Guide',
-            'email' => 'csv_guide@example.ac.in',
+            'name' => 'Guide Faculty',
+            'email' => 'guide@example.ac.in',
             'password' => bcrypt('password'),
             'role_id' => $this->facultyRole->id,
-            'phone' => '123'
+            'phone' => '1122334455',
         ]);
         $guide->assignPermission('guide');
 
-        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
-        
-        $headers = ['Enrollment Number', 'Name', 'Email', 'Department', 'Semester', 'Batch', 'Assigned Guide'];
-        $cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
-        foreach ($headers as $colIdx => $header) {
-            $sheet->setCellValue($cols[$colIdx] . '1', $header);
-        }
-
-        $row1 = ['21IT100', 'Student XLSX 1', 'stud1.xlsx@example.edu.in', 'IT', 6, 'IT_2023', 'csv_guide@example.ac.in'];
-        foreach ($row1 as $colIdx => $val) {
-            $sheet->setCellValue($cols[$colIdx] . '2', $val);
-        }
-
-        $row2 = ['21IT101', 'Student XLSX 2', 'stud2.xlsx@example.edu.in', 'IT', 6, 'IT_2023', 'nonexistent@example.ac.in'];
-        foreach ($row2 as $colIdx => $val) {
-            $sheet->setCellValue($cols[$colIdx] . '3', $val);
-        }
-
-        $tempPath = tempnam(sys_get_temp_dir(), 'xlsx');
-        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
-        $writer->save($tempPath);
-
-        $file = new \Illuminate\Http\UploadedFile(
-            $tempPath,
-            'students.xlsx',
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            null,
-            true
-        );
-
-        $response = $this->actingAs($this->admin)->post(route('admin.students.import'), [
-            'file' => $file
+        // 1. Create Student
+        $response = $this->actingAs($this->admin)->post(route('admin.student-directory.store'), [
+            'enrollment_number' => '21IT001',
+            'name' => 'Alice Green',
+            'email' => 'alice@example.edu.in',
+            'department' => 'Information Technology',
+            'semester' => 6,
+            'batch_id' => $batch->id,
+            'guide_id' => $guide->id,
         ]);
 
-        // Clean up temp file
-        if (file_exists($tempPath)) {
-            @unlink($tempPath);
-        }
-
-        $response->assertRedirect(route('admin.dashboard', ['tab' => 'students']));
-
-        $this->assertDatabaseHas('batches', ['name' => 'IT_2023']);
-        $batch = Batch::where('name', 'IT_2023')->first();
-
-        // stud1 should be imported with batch and guide assigned
+        $response->assertRedirect(route('admin.student-directory.index', ['tab' => 'student_directory']));
         $this->assertDatabaseHas('users', [
-            'enrollment_number' => '21IT100',
-            'email' => 'stud1.xlsx@example.edu.in',
+            'enrollment_number' => '21IT001',
+            'email' => 'alice@example.edu.in',
             'batch_id' => $batch->id,
             'guide_id' => $guide->id,
             'role_id' => $this->studentRole->id,
         ]);
+        $student = User::where('email', 'alice@example.edu.in')->first();
 
-        // stud2 should be imported with batch but guide is null (guide not found)
-        $this->assertDatabaseHas('users', [
-            'enrollment_number' => '21IT101',
-            'email' => 'stud2.xlsx@example.edu.in',
+        // Verify GuideAssignment was logged
+        $this->assertDatabaseHas('guide_assignments', [
+            'student_id' => $student->id,
+            'guide_id' => $guide->id,
+            'unassigned_at' => null,
+        ]);
+
+        // 2. Update Student
+        $newGuide = User::create([
+            'name' => 'New Guide Faculty',
+            'email' => 'newguide@example.ac.in',
+            'password' => bcrypt('password'),
+            'role_id' => $this->facultyRole->id,
+            'phone' => '5544332211',
+        ]);
+        $newGuide->assignPermission('guide');
+
+        $response = $this->actingAs($this->admin)->put(route('admin.student-directory.update', $student->id), [
+            'enrollment_number' => '21IT001_MOD',
+            'name' => 'Alice Green Updated',
+            'email' => 'alice@example.edu.in',
+            'department' => 'Information Technology',
+            'semester' => 7,
             'batch_id' => $batch->id,
-            'guide_id' => null,
-            'role_id' => $this->studentRole->id,
+            'guide_id' => $newGuide->id,
+        ]);
+
+        $response->assertRedirect(route('admin.student-directory.index', ['tab' => 'student_directory']));
+        $this->assertDatabaseHas('users', [
+            'enrollment_number' => '21IT001_MOD',
+            'semester' => 7,
+            'guide_id' => $newGuide->id,
+        ]);
+
+        // 3. Delete Student
+        $response = $this->actingAs($this->admin)->delete(route('admin.student-directory.destroy', $student->id), [
+            'confirmation_text' => '21IT001_MOD',
+        ]);
+
+        $response->assertRedirect(route('admin.student-directory.index', ['tab' => 'student_directory']));
+        $this->assertSoftDeleted('users', ['email' => 'alice@example.edu.in']);
+    }
+
+    /**
+     * Test restoring a soft-deleted student when re-adding them.
+     */
+    public function test_restore_soft_deleted_student_on_store(): void
+    {
+        $batch = Batch::create(['name' => 'IT_2023']);
+        $studentRole = Role::where('name', 'student')->first();
+
+        // 1. Create a student and soft delete them
+        $student = User::create([
+            'enrollment_number' => '21IT001',
+            'name' => 'Deleted Student',
+            'email' => 'deletedstudent@example.edu.in',
+            'department' => 'IT',
+            'semester' => 6,
+            'role_id' => $studentRole->id,
+            'phone' => '12345',
+            'password' => bcrypt('password'),
+        ]);
+        $student->delete();
+        $this->assertSoftDeleted('users', ['id' => $student->id]);
+
+        // 2. Try to add them manually again
+        $response = $this->actingAs($this->admin)->post(route('admin.student-directory.store'), [
+            'enrollment_number' => '21IT001',
+            'name' => 'Restored Student',
+            'email' => 'deletedstudent@example.edu.in',
+            'department' => 'Information Technology',
+            'semester' => 7,
+            'batch_id' => $batch->id,
+        ]);
+
+        $response->assertRedirect(route('admin.student-directory.index', ['tab' => 'student_directory']));
+        
+        // Assert student was restored and updated
+        $this->assertDatabaseHas('users', [
+            'id' => $student->id,
+            'enrollment_number' => '21IT001',
+            'name' => 'Restored Student',
+            'email' => 'deletedstudent@example.edu.in',
+            'department' => 'Information Technology',
+            'semester' => 7,
+            'batch_id' => $batch->id,
+            'deleted_at' => null,
         ]);
     }
+
+    /**
+     * Test restoring a soft-deleted faculty when re-adding them.
+     */
+    public function test_restore_soft_deleted_faculty_on_store(): void
+    {
+        $facultyRole = Role::where('name', 'faculty')->first();
+
+        // 1. Create faculty and soft delete them
+        $faculty = User::create([
+            'faculty_id' => 'FAC001',
+            'name' => 'Deleted Faculty',
+            'email' => 'deletedfaculty@example.ac.in',
+            'department' => 'IT',
+            'designation' => 'Assistant Professor',
+            'role_id' => $facultyRole->id,
+            'phone' => '12345',
+            'password' => bcrypt('password'),
+        ]);
+        $faculty->delete();
+        $this->assertSoftDeleted('users', ['id' => $faculty->id]);
+
+        // 2. Try to add them manually again
+        $response = $this->actingAs($this->admin)->post(route('admin.faculty-directory.store'), [
+            'faculty_id' => 'FAC001',
+            'name' => 'Restored Faculty',
+            'email' => 'deletedfaculty@example.ac.in',
+            'department' => 'Computer Science',
+            'designation' => 'Associate Professor',
+        ]);
+
+        $response->assertRedirect(route('admin.faculty-directory.index', ['tab' => 'faculty_directory']));
+
+        // Assert faculty was restored and updated
+        $this->assertDatabaseHas('users', [
+            'id' => $faculty->id,
+            'faculty_id' => 'FAC001',
+            'name' => 'Restored Faculty',
+            'email' => 'deletedfaculty@example.ac.in',
+            'department' => 'Computer Science',
+            'designation' => 'Associate Professor',
+            'deleted_at' => null,
+        ]);
+    }
+
+
+
+
 
 
 
@@ -419,5 +515,83 @@ class AdminManagementTest extends TestCase
         $viewStudents = $response->viewData('students');
         $this->assertNotNull($viewStudents);
         $this->assertTrue($viewStudents->contains('id', $student->id));
+    }
+
+    /**
+     * Test that student lists are sorted by enrollment_number and faculty lists by name.
+     */
+    public function test_sorting_order(): void
+    {
+        // 1. Create multiple students with out-of-order names and enrollment numbers
+        $studentC = User::create([
+            'enrollment_number' => '21IT003',
+            'name' => 'Charlie Student',
+            'email' => 'charlie@example.edu.in',
+            'department' => 'IT',
+            'semester' => 6,
+            'role_id' => $this->studentRole->id,
+            'phone' => '123',
+            'password' => bcrypt('password'),
+        ]);
+
+        $studentA = User::create([
+            'enrollment_number' => '21IT001',
+            'name' => 'Alice Student',
+            'email' => 'alice@example.edu.in',
+            'department' => 'IT',
+            'semester' => 6,
+            'role_id' => $this->studentRole->id,
+            'phone' => '123',
+            'password' => bcrypt('password'),
+        ]);
+
+        $studentB = User::create([
+            'enrollment_number' => '21IT002',
+            'name' => 'Bob Student',
+            'email' => 'bob@example.edu.in',
+            'department' => 'IT',
+            'semester' => 6,
+            'role_id' => $this->studentRole->id,
+            'phone' => '123',
+            'password' => bcrypt('password'),
+        ]);
+
+        // 2. Create multiple faculty with out-of-order names
+        $facultyB = User::create([
+            'name' => 'Bob Faculty',
+            'email' => 'bob_fac@example.ac.in',
+            'password' => bcrypt('password'),
+            'role_id' => $this->facultyRole->id,
+            'phone' => '123',
+        ]);
+
+        $facultyA = User::create([
+            'name' => 'Alice Faculty',
+            'email' => 'alice_fac@example.ac.in',
+            'password' => bcrypt('password'),
+            'role_id' => $this->facultyRole->id,
+            'phone' => '123',
+        ]);
+
+        // Access Student Directory index
+        $response = $this->actingAs($this->admin)->get(route('admin.student-directory.index'));
+        $response->assertStatus(200);
+        $students = $response->viewData('students');
+        
+        // Assert sorted by enrollment_number: Alice (21IT001) -> Bob (21IT002) -> Charlie (21IT003)
+        $this->assertEquals('21IT001', $students->first()->enrollment_number);
+        $this->assertEquals('21IT002', $students->get(1)->enrollment_number);
+        $this->assertEquals('21IT003', $students->get(2)->enrollment_number);
+
+        // Access Faculty Directory index
+        $response = $this->actingAs($this->admin)->get(route('admin.faculty-directory.index'));
+        $response->assertStatus(200);
+        $faculty = $response->viewData('faculty');
+        
+        // Assert sorted by name (alphabetically): Alice Faculty -> Bob Faculty
+        $names = $faculty->pluck('name')->toArray();
+        $sortedNames = $names;
+        sort($sortedNames);
+        $this->assertEquals($sortedNames, $names);
     }
 }

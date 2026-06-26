@@ -65,12 +65,17 @@ class StudentDirectoryController extends Controller
             }
         }
 
-        $students = $studentsQuery->orderBy('name')->get();
+        $students = $studentsQuery->orderBy('enrollment_number')->get();
 
         // Get filter choices
         $batches = Batch::orderBy('name')->get();
-        $faculty = User::whereIn('role_id', [$facultyRole->id, $higherFacultyRole->id])
+        $guides = User::whereIn('role_id', [$facultyRole->id, $higherFacultyRole->id])
             ->whereHas('permissions', fn($q) => $q->where('permission', 'guide'))
+            ->orderBy('name')->get();
+
+        $faculty = User::whereIn('role_id', [$facultyRole->id, $higherFacultyRole->id])
+            ->with(['permissions'])
+            ->withCount('students')
             ->orderBy('name')->get();
 
         $departments = User::where('role_id', $studentRole->id)
@@ -102,6 +107,7 @@ class StudentDirectoryController extends Controller
             'students',
             'batches',
             'faculty',
+            'guides',
             'departments',
             'semesters',
             'totalStudents',
@@ -121,44 +127,95 @@ class StudentDirectoryController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
-            'enrollment_number' => 'required|string|max:255|unique:users,enrollment_number',
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users,email',
-            'department' => 'required|string|max:255',
-            'semester' => 'required|integer|min:1|max:10',
-            'batch_id' => 'nullable|exists:batches,id',
-            'guide_id' => [
-                'nullable',
-                'exists:users,id',
-                function ($attribute, $value, $fail) {
-                    if ($value && !User::find($value)?->hasPermission('guide')) {
-                        $fail('The selected guide must have guide authority.');
-                    }
+        $existingSoftDeleted = User::onlyTrashed()
+            ->where(function($q) use ($request) {
+                if ($request->filled('enrollment_number')) {
+                    $q->where('enrollment_number', $request->enrollment_number);
                 }
-            ],
-        ]);
+                if ($request->filled('email')) {
+                    $q->orWhere('email', $request->email);
+                }
+            })->first();
 
-        $studentRole = Role::where('name', 'student')->first() ?? (object)['id' => 1];
+        if ($existingSoftDeleted) {
+            $request->validate([
+                'enrollment_number' => 'required|string|max:255|unique:users,enrollment_number,' . $existingSoftDeleted->id,
+                'name' => 'required|string|max:255',
+                'email' => 'required|string|email|max:255|unique:users,email,' . $existingSoftDeleted->id,
+                'department' => 'required|string|max:255',
+                'semester' => 'required|integer|min:1|max:10',
+                'batch_id' => 'nullable|exists:batches,id',
+                'guide_id' => [
+                    'nullable',
+                    'exists:users,id',
+                    function ($attribute, $value, $fail) {
+                        if ($value && !User::find($value)?->hasPermission('guide')) {
+                            $fail('The selected guide must have guide authority.');
+                        }
+                    }
+                ],
+            ]);
 
-        // Create student with a long random password as a dummy, and set account_status = 'inactive'
-        // Student will register themselves later
-        $student = User::create([
-            'enrollment_number' => $request->enrollment_number,
-            'name' => $request->name,
-            'email' => $request->email,
-            'department' => $request->department,
-            'semester' => $request->semester,
-            'batch_id' => $request->batch_id,
-            'guide_id' => $request->guide_id,
-            'role_id' => $studentRole->id,
-            'phone' => 'N/A',
-            'password' => Hash::make(\Illuminate\Support\Str::random(16)),
-            'account_status' => 'inactive', // directory record only
-            'is_locked' => $request->guide_id ? true : false,
-        ]);
+            $existingSoftDeleted->restore();
+            $studentRole = Role::where('name', 'student')->first() ?? (object)['id' => 1];
+
+            $existingSoftDeleted->update([
+                'enrollment_number' => $request->enrollment_number,
+                'name' => $request->name,
+                'email' => $request->email,
+                'department' => $request->department,
+                'semester' => $request->semester,
+                'batch_id' => $request->batch_id,
+                'guide_id' => $request->guide_id,
+                'role_id' => $studentRole->id,
+                'phone' => 'N/A',
+                'account_status' => 'inactive',
+                'is_locked' => $request->guide_id ? true : false,
+            ]);
+
+            $student = $existingSoftDeleted;
+        } else {
+            $request->validate([
+                'enrollment_number' => 'required|string|max:255|unique:users,enrollment_number',
+                'name' => 'required|string|max:255',
+                'email' => 'required|string|email|max:255|unique:users,email',
+                'department' => 'required|string|max:255',
+                'semester' => 'required|integer|min:1|max:10',
+                'batch_id' => 'nullable|exists:batches,id',
+                'guide_id' => [
+                    'nullable',
+                    'exists:users,id',
+                    function ($attribute, $value, $fail) {
+                        if ($value && !User::find($value)?->hasPermission('guide')) {
+                            $fail('The selected guide must have guide authority.');
+                        }
+                    }
+                ],
+            ]);
+
+            $studentRole = Role::where('name', 'student')->first() ?? (object)['id' => 1];
+
+            // Create student with a long random password as a dummy, and set account_status = 'inactive'
+            // Student will register themselves later
+            $student = User::create([
+                'enrollment_number' => $request->enrollment_number,
+                'name' => $request->name,
+                'email' => $request->email,
+                'department' => $request->department,
+                'semester' => $request->semester,
+                'batch_id' => $request->batch_id,
+                'guide_id' => $request->guide_id,
+                'role_id' => $studentRole->id,
+                'phone' => 'N/A',
+                'password' => Hash::make(\Illuminate\Support\Str::random(16)),
+                'account_status' => 'inactive', // directory record only
+                'is_locked' => $request->guide_id ? true : false,
+            ]);
+        }
 
         if ($request->guide_id) {
+            // Remove previous guide assignments for safety
+            GuideAssignment::where('student_id', $student->id)->delete();
             GuideAssignment::create([
                 'student_id' => $student->id,
                 'guide_id' => $request->guide_id,
@@ -283,155 +340,7 @@ class StudentDirectoryController extends Controller
         return redirect()->route('admin.student-directory.index', ['tab' => 'student_directory'])->with('success', 'Student record deleted successfully.');
     }
 
-    /**
-     * Import student master list from XLSX
-     */
-    public function import(Request $request)
-    {
-        if (!class_exists(\PhpOffice\PhpSpreadsheet\IOFactory::class)) {
-            return redirect()->route('admin.student-directory.index', ['tab' => 'student_directory'])
-                ->with('error', 'Excel processing library (PhpSpreadsheet) is not available.');
-        }
 
-        $request->validate([
-            'file' => 'required|file|max:5120',
-        ]);
-
-        $file = $request->file('file');
-        $path = $file->getRealPath();
-
-        try {
-            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
-            $rows = $spreadsheet->getActiveSheet()->toArray();
-        } catch (\Exception $e) {
-            return redirect()->route('admin.student-directory.index', ['tab' => 'student_directory'])
-                ->with('error', 'Error reading Excel file: ' . $e->getMessage());
-        }
-
-        if (count($rows) < 2) {
-            return redirect()->route('admin.student-directory.index', ['tab' => 'student_directory'])
-                ->with('error', 'The uploaded file is empty.');
-        }
-
-        $header = array_map(fn($h) => strtolower(trim($h ?? '')), $rows[0]);
-
-        $enrollIndex = $this->findHeaderIndex($header, ['enrollment number', 'enrollment_number', 'enrollment', 'roll number', 'roll_number']);
-        $nameIndex = $this->findHeaderIndex($header, ['name', 'student name', 'student_name']);
-        $emailIndex = $this->findHeaderIndex($header, ['email', 'email address', 'email_address']);
-        $deptIndex = $this->findHeaderIndex($header, ['department', 'dept']);
-        $semIndex = $this->findHeaderIndex($header, ['semester', 'sem']);
-        $batchIndex = $this->findHeaderIndex($header, ['batch', 'batch name', 'batch_name']);
-        $guideIndex = $this->findHeaderIndex($header, ['assigned guide', 'guide email', 'guide_email', 'guide']);
-
-        if ($nameIndex === false || $emailIndex === false) {
-            return redirect()->route('admin.student-directory.index', ['tab' => 'student_directory'])
-                ->with('error', 'Invalid structure. "Name" and "Email" columns are required in row 1.');
-        }
-
-        $successCount = 0;
-        $duplicateCount = 0;
-        $errors = [];
-
-        $studentRole = Role::where('name', 'student')->first() ?? (object)['id' => 1];
-
-        DB::beginTransaction();
-        try {
-            for ($i = 1; $i < count($rows); $i++) {
-                $row = $rows[$i];
-                $name = trim($row[$nameIndex] ?? '');
-                $email = trim($row[$emailIndex] ?? '');
-                $enrollment = $enrollIndex !== false ? trim($row[$enrollIndex] ?? '') : null;
-                $dept = $deptIndex !== false ? trim($row[$deptIndex] ?? '') : 'IT';
-                $sem = $semIndex !== false ? trim($row[$semIndex] ?? '') : '7';
-                $batchName = $batchIndex !== false ? trim($row[$batchIndex] ?? '') : null;
-                $guideVal = $guideIndex !== false ? trim($row[$guideIndex] ?? '') : null;
-
-                if (empty($name) || empty($email)) {
-                    $errors[] = "Row " . ($i + 1) . " skipped: Name and email are required.";
-                    continue;
-                }
-
-                $existing = User::where('email', $email)
-                    ->orWhere(function($q) use ($enrollment) {
-                        if ($enrollment) $q->where('enrollment_number', $enrollment);
-                    })->first();
-
-                if ($existing) {
-                    $duplicateCount++;
-                    continue;
-                }
-
-                $batchId = null;
-                if (!empty($batchName)) {
-                    $batch = Batch::firstOrCreate(['name' => $batchName]);
-                    $batchId = $batch->id;
-                }
-
-                $guideId = null;
-                if (!empty($guideVal)) {
-                    $guide = User::whereHas('role', fn($q) => $q->whereIn('name', ['faculty', 'higher_faculty']))
-                        ->where(function($q) use ($guideVal) {
-                            $q->where('email', $guideVal)
-                              ->orWhere('faculty_id', $guideVal)
-                              ->orWhere('name', $guideVal);
-                        })->first();
-                    if ($guide) {
-                        $guideId = $guide->id;
-                    }
-                }
-
-                $student = User::create([
-                    'name' => $name,
-                    'email' => $email,
-                    'enrollment_number' => $enrollment,
-                    'department' => $dept,
-                    'semester' => $sem,
-                    'batch_id' => $batchId,
-                    'guide_id' => $guideId,
-                    'role_id' => $studentRole->id,
-                    'phone' => 'N/A',
-                    'password' => Hash::make(\Illuminate\Support\Str::random(16)),
-                    'account_status' => 'inactive', // directory record
-                    'is_locked' => $guideId ? true : false,
-                ]);
-
-                if ($guideId) {
-                    GuideAssignment::create([
-                        'student_id' => $student->id,
-                        'guide_id' => $guideId,
-                        'assigned_by' => auth()->id(),
-                        'assigned_at' => now(),
-                    ]);
-                }
-
-                $successCount++;
-            }
-
-            DB::commit();
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return redirect()->route('admin.student-directory.index', ['tab' => 'student_directory'])
-                ->with('error', 'Import failed: ' . $e->getMessage());
-        }
-
-        $report = [
-            'type' => 'Student Directory',
-            'success' => $successCount,
-            'duplicates' => $duplicateCount,
-            'errors' => $errors,
-        ];
-
-        AuditLog::log(
-            "Imported {$successCount} student directory records from file",
-            "Records imported: {$successCount}",
-            "student_import",
-            ['success' => $successCount, 'duplicates' => $duplicateCount, 'errors_count' => count($errors)]
-        );
-
-        return redirect()->route('admin.student-directory.index', ['tab' => 'student_directory'])
-            ->with('success', 'Import processed successfully.')
-            ->with('import_report', $report);
-    }
 
     /**
      * Assign guide to student + lock
@@ -537,6 +446,49 @@ class StudentDirectoryController extends Controller
             'batch_id' => $newBatchId,
         ]);
 
+        if ($newBatchId) {
+            $newBatch = \App\Models\Batch::find($newBatchId);
+            if ($newBatch) {
+                // If the batch has a guide, and student doesn't have a guide (or we want to update it to batch's guide)
+                if ($newBatch->guide_id && $user->guide_id !== $newBatch->guide_id) {
+                    $oldGuideId = $user->guide_id;
+                    $user->update(['guide_id' => $newBatch->guide_id]);
+
+                    \App\Models\GuideAssignment::where('student_id', $user->id)
+                        ->whereNull('unassigned_at')
+                        ->update(['unassigned_at' => now()]);
+
+                    \App\Models\GuideAssignment::create([
+                        'student_id' => $user->id,
+                        'guide_id' => $newBatch->guide_id,
+                        'assigned_by' => auth()->id(),
+                        'assigned_at' => now(),
+                    ]);
+
+                    \App\Models\GuideHistory::create([
+                        'student_id' => $user->id,
+                        'old_guide_id' => $oldGuideId,
+                        'new_guide_id' => $newBatch->guide_id,
+                        'changed_by' => auth()->id(),
+                    ]);
+                }
+
+                $studentRole = \App\Models\Role::where('name', 'student')->first();
+                if ($studentRole) {
+                    $batchStudents = User::where('batch_id', $newBatch->id)
+                        ->where('role_id', $studentRole->id)
+                        ->get();
+                    if ($batchStudents->isNotEmpty()) {
+                        $guideIds = $batchStudents->pluck('guide_id')->filter()->unique();
+                        $allHaveGuide = $batchStudents->every(fn($s) => $s->guide_id !== null);
+                        if ($allHaveGuide && $guideIds->count() === 1) {
+                            $newBatch->update(['guide_id' => $guideIds->first()]);
+                        }
+                    }
+                }
+            }
+        }
+
         AuditLog::log(
             "Moved student to different batch: {$user->name}",
             "Student ID: {$user->id}, Old Batch: {$oldBatchId}, New Batch: {$newBatchId}",
@@ -547,14 +499,30 @@ class StudentDirectoryController extends Controller
         return redirect()->back()->with('success', 'Student batch moved successfully.');
     }
 
-    private function findHeaderIndex(array $headers, array $possibilities)
+    /**
+     * Deactivate student (toggle account status)
+     */
+    public function deactivate(Request $request, User $user)
     {
-        foreach ($possibilities as $p) {
-            $index = array_search($p, $headers);
-            if ($index !== false) {
-                return $index;
-            }
-        }
-        return false;
+        $oldStatus = $user->account_status;
+        $newStatus = $oldStatus === 'active' ? 'inactive' : 'active';
+
+        $user->update([
+            'account_status' => $newStatus,
+        ]);
+
+        AuditLog::log(
+            "Toggled student account status: {$user->name} ({$oldStatus} -> {$newStatus})",
+            "Student ID: {$user->id}",
+            "student_deactivate",
+            ['student_id' => $user->id, 'old_status' => $oldStatus, 'new_status' => $newStatus]
+        );
+
+        $msg = $newStatus === 'active' ? 'Student account activated successfully.' : 'Student account deactivated successfully.';
+        return redirect()->back()->with('success', $msg);
     }
+
+
+
+
 }

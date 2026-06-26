@@ -28,13 +28,13 @@ class GuideAssignmentController extends Controller
 
         $unassignedStudents = User::where('role_id', $studentRole->id)
             ->whereNull('guide_id')
-            ->orderBy('name')
+            ->orderBy('enrollment_number')
             ->get();
 
         $assignedStudents = User::where('role_id', $studentRole->id)
             ->whereNotNull('guide_id')
             ->with(['guide', 'batch'])
-            ->orderBy('name')
+            ->orderBy('enrollment_number')
             ->get();
 
         $guides = User::whereIn('role_id', [$facultyRole->id, $higherFacultyRole->id])
@@ -228,6 +228,25 @@ class GuideAssignmentController extends Controller
                             'new_guide_id' => $guideId,
                             'changed_by' => auth()->id(),
                         ]);
+                    }
+                }
+            }
+
+            if ($batchId) {
+                $targetBatch = \App\Models\Batch::find($batchId);
+                if ($targetBatch) {
+                    $studentRole = Role::where('name', 'student')->first();
+                    if ($studentRole) {
+                        $batchStudents = User::where('batch_id', $targetBatch->id)
+                            ->where('role_id', $studentRole->id)
+                            ->get();
+                        if ($batchStudents->isNotEmpty()) {
+                            $guideIds = $batchStudents->pluck('guide_id')->filter()->unique();
+                            $allHaveGuide = $batchStudents->every(fn($s) => $s->guide_id !== null);
+                            if ($allHaveGuide && $guideIds->count() === 1) {
+                                $targetBatch->update(['guide_id' => $guideIds->first()]);
+                            }
+                        }
                     }
                 }
             }

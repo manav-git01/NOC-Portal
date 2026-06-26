@@ -59,6 +59,22 @@ class AdminDashboardController extends Controller
 
         // Enhance batches with guide counts and internship statistics
         foreach ($batches as $batch) {
+            // Sync/Verify the batch guide assignment dynamically
+            $batchStudents = User::where('role_id', $studentRole->id)
+                ->where('batch_id', $batch->id)
+                ->get();
+            if ($batchStudents->isNotEmpty()) {
+                $guideIds = $batchStudents->pluck('guide_id')->filter()->unique();
+                $allHaveGuide = $batchStudents->every(fn($s) => $s->guide_id !== null);
+                if ($allHaveGuide && $guideIds->count() === 1) {
+                    $commonGuideId = $guideIds->first();
+                    if ($batch->guide_id !== $commonGuideId) {
+                        $batch->update(['guide_id' => $commonGuideId]);
+                        $batch->load('guide');
+                    }
+                }
+            }
+
             // Count distinct guides assigned to students in this batch
             $batch->guides_count = User::where('role_id', $studentRole->id)
                 ->where('batch_id', $batch->id)
@@ -84,6 +100,10 @@ class AdminDashboardController extends Controller
         $faculty = User::whereIn('role_id', [$facultyRole->id, $higherFacultyRole->id])
             ->with(['permissions'])
             ->withCount('students')
+            ->orderBy('name')->get();
+
+        $guides = User::whereIn('role_id', [$facultyRole->id, $higherFacultyRole->id])
+            ->whereHas('permissions', fn($q) => $q->where('permission', 'guide'))
             ->orderBy('name')->get();
 
         // Add batch counts for each faculty member
@@ -140,7 +160,7 @@ class AdminDashboardController extends Controller
             }
         }
 
-        $students = $studentsQuery->orderBy('name')->get();
+        $students = $studentsQuery->orderBy('enrollment_number')->get();
 
         // Filter Options
         $departments = User::where('role_id', $studentRole->id)
@@ -165,6 +185,7 @@ class AdminDashboardController extends Controller
             'generatedNocs',
             'batches',
             'faculty',
+            'guides',
             'students',
             'departments',
             'semesters'
@@ -377,244 +398,7 @@ class AdminDashboardController extends Controller
         return redirect()->route('admin.dashboard', ['tab' => 'faculty_authority'])->with('success', 'Faculty deleted successfully.');
     }
 
-    // ==========================================
-    // IMPORTS (XLSX Only)
-    // ==========================================
 
-    /**
-     * Validate that the uploaded file is a valid XLSX and system can process it.
-     * Returns null on success, or a redirect response on failure.
-     */
-    private function validateXlsxUpload(Request $request, string $redirectTab): ?\Illuminate\Http\RedirectResponse
-    {
-        // 1. Check ZipArchive availability FIRST (required for XLSX)
-        if (!class_exists('ZipArchive')) {
-            Log::error('Excel Upload Failed: PHP ZipArchive class is not available. The php_zip extension must be enabled in php.ini for the web server (Apache).');
-            return redirect()->route('admin.dashboard', ['tab' => $redirectTab])
-                ->with('error', 'Excel processing is currently unavailable because the PHP Zip extension is not enabled. Please contact your server administrator to enable "extension=zip" in the Apache php.ini file, then restart Apache.');
-        }
-
-        // 2. Check PhpSpreadsheet availability
-        if (!class_exists(\PhpOffice\PhpSpreadsheet\IOFactory::class)) {
-            Log::error('Excel Upload Failed: PhpSpreadsheet library is not installed or autoloaded.');
-            return redirect()->route('admin.dashboard', ['tab' => $redirectTab])
-                ->with('error', 'Excel processing library (PhpSpreadsheet) is not available. Please run "composer install" to restore dependencies.');
-        }
-
-        // 3. Validate file presence, type, and size
-        $request->validate([
-            'file' => [
-                'required',
-                'file',
-                'max:5120', // 5MB max
-            ],
-        ], [
-            'file.required' => 'Please select a file to upload.',
-            'file.file' => 'The upload failed. Please try again.',
-            'file.max' => 'The file is too large. Maximum allowed size is 5MB.',
-        ]);
-
-        $file = $request->file('file');
-
-        // 4. Validate file extension strictly
-        $extension = strtolower($file->getClientOriginalExtension());
-        if ($extension !== 'xlsx') {
-            return redirect()->route('admin.dashboard', ['tab' => $redirectTab])
-                ->with('error', 'Only Excel (.xlsx) files are supported. You uploaded a .' . $extension . ' file. Please save your spreadsheet as .xlsx format and try again.');
-        }
-
-        // 5. Validate MIME type
-        $mimeType = $file->getMimeType();
-        $allowedMimes = [
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'application/zip', // Some systems detect XLSX as zip
-            'application/octet-stream', // Fallback for some uploads
-        ];
-        if (!in_array($mimeType, $allowedMimes)) {
-            return redirect()->route('admin.dashboard', ['tab' => $redirectTab])
-                ->with('error', 'The uploaded file does not appear to be a valid Excel (.xlsx) file. Detected type: ' . $mimeType);
-        }
-
-        // 6. Check file size is not zero
-        if ($file->getSize() === 0) {
-            return redirect()->route('admin.dashboard', ['tab' => $redirectTab])
-                ->with('error', 'The uploaded file is empty (0 bytes). Please check your file and try again.');
-        }
-
-        return null; // All checks passed
-    }
-
-    /**
-     * Load a spreadsheet from an XLSX file.
-     * Returns [Spreadsheet, errorResponse]. If errorResponse is not null, return it.
-     */
-    private function loadSpreadsheet(string $filePath, string $redirectTab): array
-    {
-        try {
-            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($filePath);
-            return [$spreadsheet, null];
-        } catch (\PhpOffice\PhpSpreadsheet\Reader\Exception $e) {
-            Log::error('XLSX Read Error (Reader): ' . $e->getMessage(), ['file' => $filePath]);
-            return [null, redirect()->route('admin.dashboard', ['tab' => $redirectTab])
-                ->with('error', 'The uploaded file could not be read. It may be corrupted or not a valid Excel file. Error: ' . $e->getMessage())];
-        } catch (\Exception $e) {
-            Log::error('XLSX Read Error (General): ' . $e->getMessage(), ['file' => $filePath]);
-            return [null, redirect()->route('admin.dashboard', ['tab' => $redirectTab])
-                ->with('error', 'An unexpected error occurred while processing the Excel file: ' . $e->getMessage())];
-        }
-    }
-
-    /**
-     * Helper: read rows from the active sheet of a spreadsheet (for student import).
-     */
-    private function readXlsxRows(string $filePath, string $redirectTab): array
-    {
-        [$spreadsheet, $error] = $this->loadSpreadsheet($filePath, $redirectTab);
-        if ($error) return [null, $error];
-        $rows = $spreadsheet->getActiveSheet()->toArray();
-        return [$rows, null];
-    }
-
-    public function importStudents(Request $request)
-    {
-        // Validate XLSX upload
-        $validationError = $this->validateXlsxUpload($request, 'students');
-        if ($validationError) {
-            return $validationError;
-        }
-
-        $file = $request->file('file');
-        $path = $file->getRealPath();
-
-        // Read XLSX
-        [$rows, $readError] = $this->readXlsxRows($path, 'students');
-        if ($readError) {
-            return $readError;
-        }
-
-        if (count($rows) < 2) {
-            return redirect()->route('admin.dashboard', ['tab' => 'students'])
-                ->with('error', 'The uploaded file is empty or contains only headers.');
-        }
-
-        // Parse headers
-        $header = array_map(fn($h) => strtolower(trim($h ?? '')), $rows[0]);
-
-        $enrollIndex = $this->findHeaderIndex($header, ['enrollment number', 'enrollment_number', 'enrollment', 'roll number', 'roll_number']);
-        $nameIndex = $this->findHeaderIndex($header, ['name', 'student name', 'student_name']);
-        $emailIndex = $this->findHeaderIndex($header, ['email', 'email address', 'email_address']);
-        $deptIndex = $this->findHeaderIndex($header, ['department', 'dept']);
-        $semIndex = $this->findHeaderIndex($header, ['semester', 'sem']);
-        $batchIndex = $this->findHeaderIndex($header, ['batch', 'batch name', 'batch_name']);
-        $guideIndex = $this->findHeaderIndex($header, ['assigned guide', 'guide email', 'guide_email', 'guide']);
-
-        if ($nameIndex === false || $emailIndex === false) {
-            return redirect()->route('admin.dashboard', ['tab' => 'students'])
-                ->with('error', 'Invalid file structure. Make sure "Name" and "Email" columns are present in the first row.');
-        }
-
-        $successCount = 0;
-        $duplicateCount = 0;
-        $errors = [];
-
-        $studentRole = Role::where('name', 'student')->first() ?? (object)['id' => 1];
-        $defaultPasswordHash = Hash::make('password123');
-
-        for ($i = 1; $i < count($rows); $i++) {
-            $row = $rows[$i];
-
-            $name = trim($row[$nameIndex] ?? '');
-            $email = trim($row[$emailIndex] ?? '');
-            $enrollment = $enrollIndex !== false ? trim($row[$enrollIndex] ?? '') : null;
-            $dept = $deptIndex !== false ? trim($row[$deptIndex] ?? '') : null;
-            $sem = $semIndex !== false ? trim($row[$semIndex] ?? '') : null;
-            $batchName = $batchIndex !== false ? trim($row[$batchIndex] ?? '') : null;
-            $guideVal = $guideIndex !== false ? trim($row[$guideIndex] ?? '') : null;
-
-            if (empty($name) || empty($email)) {
-                $errors[] = "Row " . ($i + 1) . " skipped: Name and email are required.";
-                continue;
-            }
-
-            // Check duplicates
-            $emailExists = User::where('email', $email)->exists();
-            $enrollExists = $enrollment ? User::where('enrollment_number', $enrollment)->exists() : false;
-
-            if ($emailExists || $enrollExists) {
-                $duplicateCount++;
-                continue;
-            }
-
-            // Resolve Batch
-            $batchId = null;
-            if (!empty($batchName)) {
-                $batch = Batch::firstOrCreate(['name' => $batchName]);
-                $batchId = $batch->id;
-            }
-
-            // Resolve Guide
-            $guideId = null;
-            if (!empty($guideVal)) {
-                $guide = User::whereHas('role', fn($q) => $q->whereIn('name', ['faculty', 'higher_faculty']))
-                    ->whereHas('permissions', fn($q) => $q->where('permission', 'guide'))
-                    ->where(function($q) use ($guideVal) {
-                        $q->where('email', $guideVal)
-                          ->orWhere('faculty_id', $guideVal)
-                          ->orWhere('name', $guideVal);
-                    })->first();
-                if ($guide) {
-                    $guideId = $guide->id;
-                } else {
-                    $errors[] = "Row " . ($i + 1) . ": Guide '{$guideVal}' not found or lacks guide authority.";
-                }
-            }
-
-            try {
-                $student = User::create([
-                    'enrollment_number' => $enrollment,
-                    'name' => $name,
-                    'email' => $email,
-                    'department' => $dept,
-                    'semester' => $sem ?: 1,
-                    'batch_id' => $batchId,
-                    'guide_id' => $guideId,
-                    'role_id' => $studentRole->id,
-                    'phone' => 'N/A',
-                    'password' => $defaultPasswordHash,
-                ]);
-
-                if ($guideId) {
-                    GuideAssignment::create([
-                        'student_id' => $student->id,
-                        'guide_id' => $guideId,
-                        'assigned_by' => auth()->id(),
-                        'assigned_at' => now(),
-                    ]);
-                }
-                $successCount++;
-            } catch (\Exception $e) {
-                $errors[] = "Row " . ($i + 1) . ": Error inserting {$name}: " . $e->getMessage();
-            }
-        }
-
-        return redirect()->route('admin.dashboard', ['tab' => 'students'])->with('import_report', [
-            'type' => 'Student',
-            'success' => $successCount,
-            'duplicates' => $duplicateCount,
-            'errors' => $errors,
-        ]);
-    }
-
-    private function findHeaderIndex(array $headers, array $possibilities)
-    {
-        foreach ($possibilities as $p) {
-            $index = array_search($p, $headers);
-            if ($index !== false) {
-                return $index;
-            }
-        }
-        return false;
-    }
 
 
     /**
@@ -722,7 +506,94 @@ class AdminDashboardController extends Controller
      */
     public function systemDiagnostics()
     {
-        $diagnostics = [
+        $studentRole = Role::where('name', 'student')->first() ?? (object)['id' => 1];
+        $facultyRole = Role::where('name', 'faculty')->first() ?? (object)['id' => 2];
+        $higherFacultyRole = Role::where('name', 'higher_faculty')->first() ?? (object)['id' => 3];
+
+        // 1. Student Directory checks
+        $totalStudents = User::where('role_id', $studentRole->id)->count();
+        $activeStudents = User::where('role_id', $studentRole->id)->where('account_status', 'active')->count();
+        
+        // Find students with guide_id set but no active guide assignment row, or vice versa
+        $desyncedGuidesCount = DB::table('users as u')
+            ->where('u.role_id', $studentRole->id)
+            ->where(function($query) {
+                $query->whereNotNull('u.guide_id')
+                    ->whereNotExists(function($q) {
+                        $q->select(DB::raw(1))
+                            ->from('guide_assignments as ga')
+                            ->whereColumn('ga.student_id', 'u.id')
+                            ->whereColumn('ga.guide_id', 'u.guide_id')
+                            ->whereNull('ga.unassigned_at');
+                    })
+                    ->orWhereNull('u.guide_id')
+                    ->whereExists(function($q) {
+                        $q->select(DB::raw(1))
+                            ->from('guide_assignments as ga')
+                            ->whereColumn('ga.student_id', 'u.id')
+                            ->whereNull('ga.unassigned_at');
+                    });
+            })
+            ->count();
+
+        $studentStatus = $desyncedGuidesCount === 0;
+        $studentDetail = "Total: {$totalStudents} (Active: {$activeStudents}). " . ($desyncedGuidesCount === 0 ? "All guide links are synced." : "Warning: {$desyncedGuidesCount} desynced guide assignments detected.");
+
+        // 2. Faculty Directory checks
+        $totalFaculty = User::whereIn('role_id', [$facultyRole->id, $higherFacultyRole->id])->count();
+        $guidesCount = DB::table('faculty_permissions')->where('permission', 'guide')->distinct('user_id')->count('user_id');
+        $nocCount = DB::table('faculty_permissions')->where('permission', 'noc_authority')->distinct('user_id')->count('user_id');
+        $approvalCount = DB::table('faculty_permissions')->where('permission', 'approval_faculty')->distinct('user_id')->count('user_id');
+
+        $facultyStatus = $nocCount > 0 && $approvalCount > 0;
+        $facultyDetail = "Total: {$totalFaculty} (Guides: {$guidesCount}, NOC Auth: {$nocCount}, Approvals: {$approvalCount}).";
+        if (!$facultyStatus) {
+            $facultyDetail .= " Alert: Missing NOC Authority or Approval Faculty permissions in the system.";
+        }
+
+        // 3. Batch Directory checks
+        $totalBatches = Batch::count();
+        $emptyBatchesCount = 0;
+        if ($totalBatches > 0) {
+            $emptyBatchesCount = Batch::leftJoin('users', function($join) use ($studentRole) {
+                $join->on('batches.id', '=', 'users.batch_id')
+                     ->where('users.role_id', '=', $studentRole->id);
+            })
+            ->groupBy('batches.id')
+            ->having(DB::raw('COUNT(users.id)'), '=', 0)
+            ->get()
+            ->count();
+        }
+        $batchStatus = $emptyBatchesCount === 0;
+        $batchDetail = "Total Batches: {$totalBatches}. " . ($emptyBatchesCount === 0 ? "All batches are populated." : "Warning: {$emptyBatchesCount} batches have 0 students.");
+
+        // 4. Guide Assignment metrics
+        $activeAssignments = DB::table('guide_assignments')->whereNull('unassigned_at')->count();
+        $totalHistory = DB::table('guide_histories')->count();
+        $guideStatus = true;
+        $guideDetail = "Active Assignments: {$activeAssignments}. Historical changes: {$totalHistory}.";
+
+        // 5. Authority Management checks
+        $totalPermissions = DB::table('faculty_permissions')->count();
+        $authorityStatus = $totalPermissions > 0;
+        $authorityDetail = "Total assigned permission nodes: {$totalPermissions}.";
+
+        // 6. Audit Logs checks
+        $totalLogs = AuditLog::count();
+        $recentLogs = AuditLog::where('created_at', '>=', now()->subDays(7))->count();
+        $auditStatus = true;
+        $auditDetail = "Total logged events: {$totalLogs}. Events in last 7 days: {$recentLogs}.";
+
+        // 7. Applications & NOC checks
+        $totalApps = InternshipApplication::count();
+        $pendingApps = InternshipApplication::whereIn('status', ['pending', 'pending_higher'])->count();
+        $approvedApps = InternshipApplication::whereIn('status', ['faculty_approved', 'higher_faculty_approved', 'noc_generated'])->count();
+        $totalNocs = Noc::count();
+        $appStatus = true;
+        $appDetail = "Applications: {$totalApps} (Pending: {$pendingApps}, Approved: {$approvedApps}). Generated NOCs: {$totalNocs}.";
+
+        // Environment diagnostic checks (Original checks preserved)
+        $environment = [
             'zip_extension' => [
                 'label' => 'PHP Zip Extension',
                 'status' => extension_loaded('zip'),
@@ -767,6 +638,72 @@ class AdminDashboardController extends Controller
             ],
         ];
 
-        return response()->json($diagnostics);
+        // Combine into structure
+        $modules = [
+            'student_directory' => [
+                'label' => 'Student Directory Module',
+                'status' => $studentStatus,
+                'detail' => $studentDetail,
+                'icon' => 'fa-user-graduate',
+            ],
+            'faculty_directory' => [
+                'label' => 'Faculty Directory Module',
+                'status' => $facultyStatus,
+                'detail' => $facultyDetail,
+                'icon' => 'fa-chalkboard-teacher',
+            ],
+            'batch_directory' => [
+                'label' => 'Batch Directory Module',
+                'status' => $batchStatus,
+                'detail' => $batchDetail,
+                'icon' => 'fa-layer-group',
+            ],
+            'guide_assignments' => [
+                'label' => 'Guide Assignment Center',
+                'status' => $guideStatus,
+                'detail' => $guideDetail,
+                'icon' => 'fa-user-check',
+            ],
+            'authority_management' => [
+                'label' => 'Authority Management Module',
+                'status' => $authorityStatus,
+                'detail' => $authorityDetail,
+                'icon' => 'fa-users-cog',
+            ],
+            'internship_noc' => [
+                'label' => 'Internship & NOC Applications',
+                'status' => $appStatus,
+                'detail' => $appDetail,
+                'icon' => 'fa-file-invoice',
+            ],
+            'audit_logs' => [
+                'label' => 'Audit Logging Registry',
+                'status' => $auditStatus,
+                'detail' => $auditDetail,
+                'icon' => 'fa-history',
+            ],
+        ];
+
+        // Score calculation
+        $totalChecks = count($environment) + count($modules);
+        $passedChecks = 0;
+        foreach ($environment as $c) {
+            if ($c['status']) $passedChecks++;
+        }
+        foreach ($modules as $c) {
+            if ($c['status']) $passedChecks++;
+        }
+        $score = round(($passedChecks / $totalChecks) * 100);
+
+        return response()->json([
+            'score' => $score,
+            'environment' => $environment,
+            'modules' => $modules,
+            'system_info' => [
+                'laravel_version' => app()->version(),
+                'db_connection' => config('database.default'),
+                'memory_usage' => round(memory_get_usage(true) / 1024 / 1024, 2) . ' MB',
+            ]
+        ]);
     }
 }
