@@ -261,7 +261,9 @@ class AdminDashboardController extends Controller
             'guide_id' => $request->guide_id,
             'role_id' => $studentRole->id,
             'phone' => 'N/A',
-            'password' => Hash::make($request->password ?: 'password123'),
+            'password' => Hash::make($request->password ?: $request->enrollment_number),
+            'must_change_password' => $request->filled('password') ? false : true,
+            'account_status' => 'active',
         ]);
 
         if ($request->guide_id) {

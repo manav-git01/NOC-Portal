@@ -169,8 +169,10 @@ class StudentDirectoryController extends Controller
                 'guide_id' => $request->guide_id,
                 'role_id' => $studentRole->id,
                 'phone' => 'N/A',
-                'account_status' => 'inactive',
+                'account_status' => 'active',
                 'is_locked' => $request->guide_id ? true : false,
+                'password' => Hash::make($request->enrollment_number),
+                'must_change_password' => true,
             ]);
 
             $student = $existingSoftDeleted;
@@ -195,8 +197,7 @@ class StudentDirectoryController extends Controller
 
             $studentRole = Role::where('name', 'student')->first() ?? (object)['id' => 1];
 
-            // Create student with a long random password as a dummy, and set account_status = 'inactive'
-            // Student will register themselves later
+            // Create student with password set to enrollment number and account_status = 'active'
             $student = User::create([
                 'enrollment_number' => $request->enrollment_number,
                 'name' => $request->name,
@@ -207,8 +208,9 @@ class StudentDirectoryController extends Controller
                 'guide_id' => $request->guide_id,
                 'role_id' => $studentRole->id,
                 'phone' => 'N/A',
-                'password' => Hash::make(\Illuminate\Support\Str::random(16)),
-                'account_status' => 'inactive', // directory record only
+                'password' => Hash::make($request->enrollment_number),
+                'account_status' => 'active',
+                'must_change_password' => true,
                 'is_locked' => $request->guide_id ? true : false,
             ]);
         }

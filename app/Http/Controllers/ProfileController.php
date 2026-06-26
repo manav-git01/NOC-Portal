@@ -94,6 +94,16 @@ class ProfileController extends Controller
         if ($user->isStudent()) {
             $rules['department'] = ['required', 'string', 'max:255'];
             $rules['semester'] = ['required', 'integer', 'min:1', 'max:10'];
+            $rules['phone'] = [
+                'required',
+                'string',
+                'max:20',
+                function ($attribute, $value, $fail) {
+                    if ($value === 'N/A' || $value === 'n/a') {
+                        $fail('The phone number must be a valid number and cannot be N/A.');
+                    }
+                }
+            ];
         } elseif ($user->isFaculty() || $user->isHigherFaculty()) {
             $rules['department'] = ['required', 'string', 'max:255'];
         } else {

@@ -26,13 +26,16 @@ class PasswordChangeController extends Controller
     public function update(Request $request): RedirectResponse
     {
         $request->validate([
-            'password' => ['required', 'confirmed', Password::min(8)],
+            'password' => [
+                'required',
+                'confirmed',
+                Password::min(8)
+                    ->letters()
+                    ->mixedCase()
+                    ->numbers()
+                    ->symbols()
+            ],
         ]);
-
-        $password = $request->password;
-        if (!preg_match('/[A-Za-z]/', $password) || !preg_match('/[0-9]/', $password)) {
-            return back()->withErrors(['password' => 'Password strength must be at least Medium (8+ characters containing both letters and numbers).']);
-        }
 
         $user = Auth::user();
         $user->update([
@@ -48,6 +51,11 @@ class PasswordChangeController extends Controller
             'target' => "User: {$user->name} ({$user->email}) completed forced password change on first login",
             'timestamp' => now(),
         ]);
+
+        if ($user->isStudent() && ($user->phone === 'N/A' || empty($user->phone) || empty($user->department) || empty($user->semester))) {
+            return redirect()->route('profile.settings')
+                ->with('success', 'Password changed successfully! Please complete your details (department, semester, and phone number) to access your dashboard.');
+        }
 
         return redirect()->route('dashboard')
             ->with('success', 'Password changed successfully! Welcome to your dashboard.');

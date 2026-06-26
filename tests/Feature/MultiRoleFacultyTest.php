@@ -271,16 +271,20 @@ class MultiRoleFacultyTest extends TestCase
             'phone' => '1234567802',
         ]);
 
-        // Access dashboard without specifying batch_id (should default to first batch, Batch 1)
+        // Access dashboard landing page (should list the batches)
         $response = $this->actingAs($faculty)->get(route('faculty.guide-dashboard'));
         $response->assertStatus(200);
         $response->assertSee('Batch 1');
         $response->assertSee('Batch 2');
+
+        // Access Batch 1 page (should list Student One and not Student Two)
+        $response = $this->actingAs($faculty)->get(route('faculty.guide.batch-students', $batch1->id));
+        $response->assertStatus(200);
         $response->assertSee('Student One');
         $response->assertDontSee('Student Two');
 
-        // Access dashboard specifying batch_id for Batch 2
-        $response = $this->actingAs($faculty)->get(route('faculty.guide-dashboard', ['batch_id' => $batch2->id]));
+        // Access Batch 2 page (should list Student Two and not Student One)
+        $response = $this->actingAs($faculty)->get(route('faculty.guide.batch-students', $batch2->id));
         $response->assertStatus(200);
         $response->assertSee('Student Two');
         $response->assertDontSee('Student One');
